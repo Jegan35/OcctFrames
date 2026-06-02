@@ -1,0 +1,9 @@
+-rootPath
+/home/texsonics/Documents/toolocct
+-cmake-output
+-output-file
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/.qt/qml_imports/appOCCT_conf.cmake
+-importPath
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug
+-importPath
+/home/texsonics/Qt/6.11.0/gcc_64/qml

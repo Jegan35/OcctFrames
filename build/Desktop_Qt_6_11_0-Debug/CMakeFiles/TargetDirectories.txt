@@ -1,0 +1,6 @@
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/appOCCT.dir
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/appOCCT_qmlimportscan.dir
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/edit_cache.dir
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/rebuild_cache.dir
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/appOCCT_autogen_timestamp_deps.dir
+/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/CMakeFiles/appOCCT_autogen.dir

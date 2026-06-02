@@ -1,0 +1,87 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "OCCT_Industrial",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "appOCCT::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-appOCCT-Debug-cd4cb2b610ce766bbba6.json",
+					"name" : "appOCCT",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "appOCCT_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-appOCCT_autogen-Debug-df18a6c62f855028ea28.json",
+					"name" : "appOCCT_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "appOCCT_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-appOCCT_autogen_timestamp_deps-Debug-8f6e13e0de12faa7c52a.json",
+					"name" : "appOCCT_autogen_timestamp_deps",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "appOCCT_qmlimportscan::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-appOCCT_qmlimportscan-Debug-4bedbafe09932b384c58.json",
+					"name" : "appOCCT_qmlimportscan",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug",
+		"source" : "/home/texsonics/Documents/toolocct"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}
