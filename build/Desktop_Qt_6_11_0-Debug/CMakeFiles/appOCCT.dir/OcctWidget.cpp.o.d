@@ -614,67 +614,7 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/TopoDS_Face.hxx \
  /usr/local/include/opencascade/TopoDS_Face.lxx \
  /usr/local/include/opencascade/BRepTools_Modifier.lxx \
- /usr/local/include/opencascade/gp_Quaternion.hxx \
- /usr/local/include/opencascade/gp_EulerSequence.hxx \
- /usr/local/include/opencascade/BRepLProp_SLProps.hxx \
- /usr/local/include/opencascade/BRepAdaptor_Surface.hxx \
- /usr/local/include/opencascade/Adaptor3d_Surface.hxx \
- /usr/local/include/opencascade/Adaptor3d_Curve.hxx \
- /usr/local/include/opencascade/gp_Lin.hxx \
- /usr/local/include/opencascade/gp_Ax1.hxx \
- /usr/local/include/opencascade/gp_Ax2.hxx \
- /usr/local/include/opencascade/gp_Circ.hxx \
- /usr/local/include/opencascade/gp_Elips.hxx \
- /usr/local/include/opencascade/gp_Hypr.hxx \
- /usr/local/include/opencascade/gp_Parab.hxx \
- /usr/local/include/opencascade/GeomAbs_Shape.hxx \
- /usr/local/include/opencascade/TColStd_Array1OfReal.hxx \
- /usr/local/include/opencascade/NCollection_Array1.hxx \
- /usr/local/include/opencascade/Standard_DimensionMismatch.hxx \
- /usr/local/include/opencascade/Standard_DimensionError.hxx \
- /usr/local/include/opencascade/Standard_OutOfMemory.hxx \
- /usr/local/include/opencascade/GeomAbs_CurveType.hxx \
- /usr/local/include/opencascade/GeomAbs_SurfaceType.hxx \
- /usr/local/include/opencascade/gp_Cylinder.hxx \
- /usr/local/include/opencascade/gp_Ax3.hxx \
- /usr/local/include/opencascade/gp_Cone.hxx \
- /usr/local/include/opencascade/gp_Pln.hxx \
- /usr/local/include/opencascade/gp_Sphere.hxx \
- /usr/local/include/opencascade/gp_Torus.hxx \
- /usr/local/include/opencascade/GeomAdaptor_Surface.hxx \
- /usr/local/include/opencascade/BSplSLib_Cache.hxx \
- /usr/local/include/opencascade/TColgp_Array2OfPnt.hxx \
- /usr/local/include/opencascade/NCollection_Array2.hxx \
- /usr/local/include/opencascade/TColStd_Array1OfInteger.hxx \
- /usr/local/include/opencascade/TColStd_HArray2OfReal.hxx \
- /usr/local/include/opencascade/TColStd_Array2OfReal.hxx \
- /usr/local/include/opencascade/NCollection_DefineHArray2.hxx \
- /usr/local/include/opencascade/NCollection_DefineArray2.hxx \
- /usr/local/include/opencascade/TColStd_HArray1OfReal.hxx \
- /usr/local/include/opencascade/NCollection_DefineHArray1.hxx \
- /usr/local/include/opencascade/NCollection_DefineArray1.hxx \
- /usr/local/include/opencascade/BSplCLib_CacheParams.hxx \
- /usr/local/include/opencascade/BSplCLib.hxx \
- /usr/local/include/opencascade/BSplCLib_KnotDistribution.hxx \
- /usr/local/include/opencascade/BSplCLib_MultDistribution.hxx \
- /usr/local/include/opencascade/GeomAbs_BSplKnotDistribution.hxx \
- /usr/local/include/opencascade/TColgp_Array1OfPnt.hxx \
- /usr/local/include/opencascade/TColgp_Array1OfPnt2d.hxx \
- /usr/local/include/opencascade/TColStd_HArray1OfInteger.hxx \
- /usr/local/include/opencascade/BSplCLib_EvaluatorFunction.hxx \
- /usr/local/include/opencascade/BSplCLib.lxx \
- /usr/local/include/opencascade/PLib.hxx \
- /usr/local/include/opencascade/GeomEvaluator_Surface.hxx \
- /usr/local/include/opencascade/Geom_Surface.hxx \
- /usr/local/include/opencascade/Geom_Curve.hxx \
- /usr/local/include/opencascade/Geom_Geometry.hxx \
- /usr/local/include/opencascade/Standard_NullObject.hxx \
- /usr/local/include/opencascade/LProp_Status.hxx \
  /usr/local/include/opencascade/Font_FontAspect.hxx \
- /usr/local/include/opencascade/BRepTools.hxx \
- /usr/local/include/opencascade/TopTools_FormatVersion.hxx \
- /usr/local/include/opencascade/TopTools_IndexedMapOfShape.hxx \
- /usr/local/include/opencascade/NCollection_IndexedMap.hxx \
  /home/texsonics/Documents/toolocct/OcctWidget.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
  /usr/local/include/opencascade/AIS_InteractiveContext.hxx \
@@ -686,8 +626,13 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/PrsMgr_PresentableObject.hxx \
  /usr/local/include/opencascade/Aspect_TypeOfFacingModel.hxx \
  /usr/local/include/opencascade/gp_GTrsf.hxx \
+ /usr/local/include/opencascade/gp_Ax1.hxx \
+ /usr/local/include/opencascade/gp_Ax2.hxx \
  /usr/local/include/opencascade/Graphic3d_ClipPlane.hxx \
  /usr/local/include/opencascade/Aspect_HatchStyle.hxx \
+ /usr/local/include/opencascade/gp_Pln.hxx \
+ /usr/local/include/opencascade/gp_Ax3.hxx \
+ /usr/local/include/opencascade/gp_Lin.hxx \
  /usr/local/include/opencascade/Graphic3d_AspectFillArea3d.hxx \
  /usr/local/include/opencascade/Graphic3d_Aspects.hxx \
  /usr/local/include/opencascade/Aspect_PolygonOffsetMode.hxx \
@@ -702,6 +647,12 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/TColStd_HArray1OfByte.hxx \
  /usr/local/include/opencascade/Standard_Byte.hxx \
  /usr/local/include/opencascade/TColStd_Array1OfByte.hxx \
+ /usr/local/include/opencascade/NCollection_Array1.hxx \
+ /usr/local/include/opencascade/Standard_DimensionMismatch.hxx \
+ /usr/local/include/opencascade/Standard_DimensionError.hxx \
+ /usr/local/include/opencascade/Standard_OutOfMemory.hxx \
+ /usr/local/include/opencascade/NCollection_DefineHArray1.hxx \
+ /usr/local/include/opencascade/NCollection_DefineArray1.hxx \
  /usr/local/include/opencascade/Graphic3d_HatchStyle.hxx \
  /usr/local/include/opencascade/Graphic3d_PolygonOffset.hxx \
  /usr/local/include/opencascade/Graphic3d_ShaderProgram.hxx \
@@ -760,6 +711,7 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Prs3d_VertexDrawMode.hxx \
  /usr/local/include/opencascade/Prs3d_DimensionUnits.hxx \
  /usr/local/include/opencascade/Prs3d_TypeOfHLR.hxx \
+ /usr/local/include/opencascade/GeomAbs_Shape.hxx \
  /usr/local/include/opencascade/PrsMgr_ListOfPresentableObjects.hxx \
  /usr/local/include/opencascade/PrsMgr_Presentation.hxx \
  /usr/local/include/opencascade/Prs3d_Presentation.hxx \
@@ -786,6 +738,7 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Graphic3d_SequenceOfGroup.hxx \
  /usr/local/include/opencascade/Graphic3d_ViewAffinity.hxx \
  /usr/local/include/opencascade/TopLoc_Datum3D.hxx \
+ /usr/local/include/opencascade/NCollection_IndexedMap.hxx \
  /usr/local/include/opencascade/Graphic3d_MapOfStructure.hxx \
  /usr/local/include/opencascade/Graphic3d_TypeOfConnection.hxx \
  /usr/local/include/opencascade/Graphic3d_TypeOfStructure.hxx \
@@ -801,12 +754,14 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Select3D_BndBox3d.hxx \
  /usr/local/include/opencascade/SelectBasics_SelectingVolumeManager.hxx \
  /usr/local/include/opencascade/TColgp_HArray1OfPnt.hxx \
+ /usr/local/include/opencascade/TColgp_Array1OfPnt.hxx \
  /usr/local/include/opencascade/SelectBasics_PickResult.hxx \
  /usr/local/include/opencascade/SelectMgr_SelectionType.hxx \
  /usr/local/include/opencascade/SelectMgr_SelectingVolumeManager.hxx \
  /usr/local/include/opencascade/SelectMgr_BaseIntersector.hxx \
  /usr/local/include/opencascade/Select3D_TypeOfSensitivity.hxx \
  /usr/local/include/opencascade/SelectMgr_VectorTypes.hxx \
+ /usr/local/include/opencascade/TColgp_Array1OfPnt2d.hxx \
  /usr/local/include/opencascade/SelectMgr_ViewClipRange.hxx \
  /usr/local/include/opencascade/Bnd_Range.hxx \
  /usr/local/include/opencascade/SelectMgr_StateOfSelection.hxx \
@@ -866,6 +821,8 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Graphic3d_LightSet.hxx \
  /usr/local/include/opencascade/TColStd_IndexedDataMapOfStringString.hxx \
  /usr/local/include/opencascade/Graphic3d_MapOfObject.hxx \
+ /usr/local/include/opencascade/TColStd_Array2OfReal.hxx \
+ /usr/local/include/opencascade/NCollection_Array2.hxx \
  /usr/local/include/opencascade/PrsMgr_ListOfPresentations.hxx \
  /usr/local/include/opencascade/AIS_NListOfEntityOwner.hxx \
  /usr/local/include/opencascade/AIS_SelectionScheme.hxx \
@@ -908,6 +865,8 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/SelectMgr_ToleranceMap.hxx \
  /usr/local/include/opencascade/SelectMgr_TypeOfDepthTolerance.hxx \
  /usr/local/include/opencascade/StdSelect_TypeOfSelectionImage.hxx \
+ /usr/local/include/opencascade/TColStd_HArray1OfInteger.hxx \
+ /usr/local/include/opencascade/TColStd_Array1OfInteger.hxx \
  /usr/local/include/opencascade/TColStd_SequenceOfInteger.hxx \
  /usr/local/include/opencascade/StdSelect_ViewerSelector3d.hxx \
  /usr/local/include/opencascade/V3d_Viewer.hxx \
@@ -968,19 +927,48 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/BRepAdaptor_Curve.hxx \
  /usr/local/include/opencascade/Adaptor3d_CurveOnSurface.hxx \
  /usr/local/include/opencascade/Adaptor2d_Curve2d.hxx \
+ /usr/local/include/opencascade/GeomAbs_CurveType.hxx \
  /usr/local/include/opencascade/gp_Lin2d.hxx \
  /usr/local/include/opencascade/gp_Circ2d.hxx \
  /usr/local/include/opencascade/gp_Ax22d.hxx \
  /usr/local/include/opencascade/gp_Elips2d.hxx \
  /usr/local/include/opencascade/gp_Hypr2d.hxx \
  /usr/local/include/opencascade/gp_Parab2d.hxx \
+ /usr/local/include/opencascade/TColStd_Array1OfReal.hxx \
+ /usr/local/include/opencascade/Adaptor3d_Curve.hxx \
+ /usr/local/include/opencascade/gp_Circ.hxx \
+ /usr/local/include/opencascade/gp_Elips.hxx \
+ /usr/local/include/opencascade/gp_Hypr.hxx \
+ /usr/local/include/opencascade/gp_Parab.hxx \
+ /usr/local/include/opencascade/Adaptor3d_Surface.hxx \
+ /usr/local/include/opencascade/GeomAbs_SurfaceType.hxx \
+ /usr/local/include/opencascade/gp_Cylinder.hxx \
+ /usr/local/include/opencascade/gp_Cone.hxx \
+ /usr/local/include/opencascade/gp_Sphere.hxx \
+ /usr/local/include/opencascade/gp_Torus.hxx \
  /usr/local/include/opencascade/TColStd_HSequenceOfReal.hxx \
  /usr/local/include/opencascade/TColStd_SequenceOfReal.hxx \
  /usr/local/include/opencascade/NCollection_DefineHSequence.hxx \
  /usr/local/include/opencascade/NCollection_DefineSequence.hxx \
  /usr/local/include/opencascade/GeomAdaptor_Curve.hxx \
  /usr/local/include/opencascade/BSplCLib_Cache.hxx \
+ /usr/local/include/opencascade/TColStd_HArray2OfReal.hxx \
+ /usr/local/include/opencascade/NCollection_DefineHArray2.hxx \
+ /usr/local/include/opencascade/NCollection_DefineArray2.hxx \
+ /usr/local/include/opencascade/TColStd_HArray1OfReal.hxx \
+ /usr/local/include/opencascade/BSplCLib_CacheParams.hxx \
+ /usr/local/include/opencascade/BSplCLib.hxx \
+ /usr/local/include/opencascade/BSplCLib_KnotDistribution.hxx \
+ /usr/local/include/opencascade/BSplCLib_MultDistribution.hxx \
+ /usr/local/include/opencascade/GeomAbs_BSplKnotDistribution.hxx \
+ /usr/local/include/opencascade/BSplCLib_EvaluatorFunction.hxx \
+ /usr/local/include/opencascade/BSplCLib.lxx \
+ /usr/local/include/opencascade/PLib.hxx \
+ /usr/local/include/opencascade/TColgp_Array2OfPnt.hxx \
+ /usr/local/include/opencascade/Geom_Curve.hxx \
+ /usr/local/include/opencascade/Geom_Geometry.hxx \
  /usr/local/include/opencascade/GeomEvaluator_Curve.hxx \
+ /usr/local/include/opencascade/Standard_NullObject.hxx \
  /usr/local/include/opencascade/BRepAdaptor_CompCurve.hxx \
  /usr/local/include/opencascade/TopoDS_Wire.hxx \
  /usr/local/include/opencascade/TopoDS_Wire.lxx \
@@ -989,6 +977,7 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/GCPnts_UniformAbscissa.hxx \
  /usr/local/include/opencascade/StdFail_NotDone.hxx \
  /usr/local/include/opencascade/BRep_Tool.hxx \
+ /usr/local/include/opencascade/Geom_Surface.hxx \
  /usr/local/include/opencascade/Geom2d_Curve.hxx \
  /usr/local/include/opencascade/Geom2d_Geometry.hxx \
  /usr/local/include/opencascade/Poly_ListOfTriangulation.hxx \
@@ -1222,4 +1211,6 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/BRepLib_EdgeError.hxx \
  /usr/local/include/opencascade/BRepBuilderAPI_EdgeError.hxx \
  /usr/local/include/opencascade/BRepPrimAPI_MakeSphere.hxx \
- /usr/local/include/opencascade/BRepPrim_Sphere.hxx
+ /usr/local/include/opencascade/BRepPrim_Sphere.hxx \
+ /usr/local/include/opencascade/Poly.hxx \
+ /usr/local/include/opencascade/TColgp_SequenceOfPnt2d.hxx

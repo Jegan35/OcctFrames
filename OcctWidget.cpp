@@ -17,12 +17,7 @@
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
 #include <gp_Trsf.hxx>
-#include <gp_Quaternion.hxx>
-#include <gp_EulerSequence.hxx>
-#include <BRepLProp_SLProps.hxx>
 #include <Font_FontAspect.hxx>
-#include <BRepTools.hxx>
-#include <Geom_Surface.hxx>
 
 
 // ==========================================
@@ -72,14 +67,16 @@
 #include <XCAFDoc_DocumentTool.hxx>
 #include <XCAFDoc_ShapeTool.hxx>
 #include <TDF_LabelSequence.hxx>
-
-// ✅ ADD THE MISSING GRID HEADERS HERE:
 #include <TopoDS_Compound.hxx>
 #include <BRep_Builder.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
 #include <cmath>
+#include <Poly.hxx>
+#include <Prs3d_Drawer.hxx>
+#include <Prs3d_ShadingAspect.hxx>
+#include <Graphic3d_MaterialAspect.hxx>
 
 
 OcctWidget::OcctWidget(QWidget *parent) : QWidget(parent)
@@ -500,7 +497,7 @@ void OcctWidget::processCurrentSelection(double resolution)
 
     QString xyzData;
     QTextStream stringOut(&xyzData);
-    stringOut << "X,Y,Z,Rx,Ry,Rz\n";
+    stringOut << "X,Y,Z\n";
 
     while (myContext->MoreSelected()) {
         TopoDS_Shape shape = myContext->SelectedShape();
@@ -551,7 +548,7 @@ void OcctWidget::regenerateCSV()
     }
 
     QTextStream out(&file);
-    out << "X,Y,Z,Rx,Ry,Rz\n";
+    out << "X,Y,Z\n";
 
     // =================================================================
     // ✅ THE FIX: QML SCALE FACTOR
@@ -594,25 +591,9 @@ void OcctWidget::regenerateCSV()
 }
 
 // ====================================================================
-static gp_Dir g_faceNormal(0, 0, 1); // Default pointing UP
-static bool g_hasFaceNormal = false;
+
 void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution)
 {
-    // 🚀 THE FIX: முகத்தின் செங்குத்து திசையை (Surface Normal) கண்டுபிடிக்கிறோம்
-    Standard_Real umin, umax, vmin, vmax;
-    BRepTools::UVBounds(face, umin, umax, vmin, vmax);
-    Handle(Geom_Surface) surf = BRep_Tool::Surface(face);
-
-    gp_Pnt p; gp_Vec d1u, d1v;
-    surf->D1((umin + umax) / 2.0, (vmin + vmax) / 2.0, p, d1u, d1v);
-
-    gp_Vec normVec = d1u.Crossed(d1v);
-    if (face.Orientation() == TopAbs_REVERSED) normVec.Reverse();
-
-    // நார்மல் திசையை சேவ் செய்கிறோம் (பக்கவாட்டுச் சுவரா, மேல்தளமா என்று அறிய)
-    g_faceNormal = gp_Dir(normVec);
-    g_hasFaceNormal = true;
-
     TopExp_Explorer wireExplorer(face, TopAbs_WIRE);
     int loopCount = 1;
     for (; wireExplorer.More(); wireExplorer.Next()) {
@@ -622,8 +603,8 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
         processWire(wire, out, resolution);
         loopCount++;
     }
-    g_hasFaceNormal = false; // Reset after finishing the face
 }
+
 void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution)
 {
     BRepAdaptor_CompCurve compCurve(wire, Standard_True);
@@ -634,36 +615,10 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
     if (discretizer.IsDone()) {
         for (int i = 1; i <= discretizer.NbPoints(); ++i) {
             Standard_Real param = discretizer.Parameter(i);
+            gp_Pnt pt = compCurve.Value(param);
 
-            gp_Pnt pt;
-            gp_Vec tangentVec;
-            // 🚀 THE FIX: Point மற்றும் Tangent-ஐ எடுக்கிறோம்
-            compCurve.D1(param, pt, tangentVec);
-
-            // 1. Tool Direction (செங்குத்து திசை)
-            gp_Dir x_axis(tangentVec);
-            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir z_axis(-normal.X(), -normal.Y(), -normal.Z());
-
-            if (z_axis.IsParallel(x_axis, 0.01)) {
-                x_axis = gp_Dir(1, 0, 0);
-                if (z_axis.IsParallel(x_axis, 0.01)) x_axis = gp_Dir(0, 1, 0);
-            }
-
-            gp_Dir y_axis = z_axis.Crossed(x_axis);
-            x_axis = y_axis.Crossed(z_axis);
-
-            // 2. Calculate Euler Angles
-            gp_Ax3 toolPos(pt, z_axis, x_axis);
-            gp_Trsf trsf;
-            trsf.SetTransformation(toolPos, gp_Ax3(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0)));
-
-            Standard_Real rx, ry, rz;
-            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
-
-            // 🚀 THE FIX: X,Y,Z மற்றும் Rx,Ry,Rz ஆகிய 6 மதிப்புகளையும் பிரிண்ட் செய்கிறோம்!
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
-                << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
+            // ✅ THE FIX: எதையும் கழிக்கக் கூடாது! நேரடியாக Absolute World Coordinate-ஐ அனுப்புகிறோம்.
+            out << pt.X() << "," << pt.Y() << "," << pt.Z() << "\n";
         }
     }
 }
@@ -680,44 +635,10 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
     if (discretizer.IsDone()) {
         for (int i = 1; i <= discretizer.NbPoints(); ++i) {
             Standard_Real param = discretizer.Parameter(i);
+            gp_Pnt pt = adaptor.Value(param);
 
-            gp_Pnt pt;
-            gp_Vec tangentVec;
-            adaptor.D1(param, pt, tangentVec); // புள்ளி மற்றும் நகரும் திசை (Tangent)
-
-            // 1. Tool-இன் X, Y, Z திசைகளைக் கணக்கிடுதல்
-            gp_Dir x_axis(tangentVec); // டூல் நகரும் திசை (Direction of travel)
-
-            // முகம் (Face) செலக்ட் ஆகவில்லை என்றால் நேராக கீழே பார்க்கும்படி வைக்கிறோம்
-            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-
-            // 🚀 THE FIX: டூல் பொருளை நோக்கிக் குத்தாகப் பார்க்க வேண்டும் (Z_axis = -Normal)
-            gp_Dir z_axis(-normal.X(), -normal.Y(), -normal.Z());
-
-            // பாதுகாப்பிற்காக (Tangent மற்றும் Normal இணையாக இருந்தால்)
-            if (z_axis.IsParallel(x_axis, 0.01)) {
-                x_axis = gp_Dir(1, 0, 0);
-                if (z_axis.IsParallel(x_axis, 0.01)) x_axis = gp_Dir(0, 1, 0);
-            }
-
-            gp_Dir y_axis = z_axis.Crossed(x_axis); // Y திசை
-            x_axis = y_axis.Crossed(z_axis); // Orthogonal சரிபார்ப்பு
-
-            // 2. KDL Euler Angles (Rx, Ry, Rz) உருவாக்குதல்
-            gp_Ax3 toolPos(pt, z_axis, x_axis);
-            gp_Trsf trsf;
-            trsf.SetTransformation(toolPos, gp_Ax3(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0)));
-
-            Standard_Real rx, ry, rz;
-            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
-
-            double rx_deg = rx * (180.0 / M_PI);
-            double ry_deg = ry * (180.0 / M_PI);
-            double rz_deg = rz * (180.0 / M_PI);
-
-            // 3. X,Y,Z மற்றும் Rx,Ry,Rz ஆகிய 6 மதிப்புகளையும் CSV-க்கு அனுப்புதல்
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
-                << rx_deg << "," << ry_deg << "," << rz_deg << "\n";
+            // ✅ THE FIX: எதையும் கழிக்கக் கூடாது! நேரடியாக Absolute World Coordinate-ஐ அனுப்புகிறோம்.
+            out << pt.X() << "," << pt.Y() << "," << pt.Z() << "\n";
         }
     }
 }
@@ -904,10 +825,7 @@ void OcctWidget::offsetWorkpiece(double dx, double dy, double dz)
 // ==========================================
 void OcctWidget::loadDefaultRobot()
 {
-    if (myView.IsNull()) {
-        QTimer::singleShot(100, this, &OcctWidget::loadDefaultRobot);
-        return;
-    }
+    if (myView.IsNull()) initOCCT();
 
     // Prevent crashing if the user spam-clicks the Load button
     if (myCurrentLoadIndex != -1) return;
@@ -920,10 +838,11 @@ void OcctWidget::loadDefaultRobot()
     QTimer::singleShot(50, this, &OcctWidget::loadNextRobotLink);
 }
 
+
 void OcctWidget::loadNextRobotLink()
 {
     // ==========================================================
-    // 🚀 THE FIX: Change > 5 to > 6 to load all 7 parts (link0 to link6)
+    // 🚀 Load all 7 parts (link0 to link6)
     // ==========================================================
     if (myCurrentLoadIndex > 6) {
         myBaseTriad = createThickTriad(1.5);
@@ -963,7 +882,7 @@ void OcctWidget::loadNextRobotLink()
         return;
     }
 
-    // 2. Setup the file path (Make sure it points to your 'step1' folder)
+    // 2. Setup the file path
     QString folderPath = "/home/texsonics/Documents/toolocct/step1/";
     QString fileName = folderPath + QString("link%1.stl").arg(myCurrentLoadIndex);
 
@@ -975,29 +894,93 @@ void OcctWidget::loadNextRobotLink()
     }
 
     std::string stdFile = fileName.toStdString();
-
     Handle(Poly_Triangulation) mesh = RWStl::ReadFile(stdFile.c_str());
 
     if (!mesh.IsNull()) {
+
+        // 1. Generate 3D lighting faces (fixes the pitch-black issue)
+        Poly::ComputeNormals(mesh);
+
         Handle(AIS_Triangulation) aisShape = new AIS_Triangulation(mesh);
 
         gp_Trsf zeroTrsf;
         myContext->SetLocation(aisShape, TopLoc_Location(zeroTrsf));
 
-        Quantity_Color partColor;
-        // ==========================================================
-        // 🎨 COLOR FIX: Ensure link6 (the flange) gets a distinct color
-        // ==========================================================
-        if (myCurrentLoadIndex == 0) partColor = Quantity_NOC_GRAY30;          // Base
-        else if (myCurrentLoadIndex == 6) partColor = Quantity_NOC_GRAY75;     // Flange (link6)
-        else partColor = Quantity_Color(1.0, 0.4, 0.0, Quantity_TOC_RGB);      // Orange for links 1-5
+        // 🎨 EXACT QML COLORS CONVERTED TO OPEN CASCADE RGB (0.0 TO 1.0)
 
+        // 🎨 EXACT QML COLORS CONVERTED TO OPEN CASCADE RGB (0.0 TO 1.0)
+        Quantity_Color partColor;
+
+        switch (myCurrentLoadIndex) {
+        case 0: partColor = Quantity_Color(0.690, 0.690, 0.690, Quantity_TOC_RGB); break; // #b0b0b0
+        case 1: partColor = Quantity_Color(0.827, 0.184, 0.184, Quantity_TOC_RGB); break; // #d32f2f
+        case 2: partColor = Quantity_Color(0.220, 0.557, 0.235, Quantity_TOC_RGB); break; // #388e3c
+        case 3: partColor = Quantity_Color(0.098, 0.463, 0.824, Quantity_TOC_RGB); break; // #1976d2
+        case 4: partColor = Quantity_Color(0.984, 0.753, 0.176, Quantity_TOC_RGB); break; // #fbc02d
+        case 5: partColor = Quantity_Color(0.482, 0.122, 0.635, Quantity_TOC_RGB); break; // #7b1fa2
+        case 6: partColor = Quantity_Color(1.000, 1.000, 1.000, Quantity_TOC_RGB); break; // #ffffff
+        default: partColor = Quantity_Color(1.0, 1.0, 1.0, Quantity_TOC_RGB); break;
+        }
+        // ==========================================================
+        // 🚀 Apply Custom Color to Shading Aspect
+        // ==========================================================
+
+
+        //Ashok design
+        // 🎨 EXACT COLORS FROM THE UPLOADED IMAGE (RGB: 0.0 to 1.0)
+        // Quantity_Color partColor;
+
+        // switch (myCurrentLoadIndex) {
+        // case 0: partColor = Quantity_Color(0.85, 0.65, 0.10, Quantity_TOC_RGB); break; // Base: Dark/Mustard Yellow
+        // case 1: partColor = Quantity_Color(0.65, 0.65, 0.60, Quantity_TOC_RGB); break; // Link 1: Grey/Khaki
+        // case 2: partColor = Quantity_Color(0.65, 0.45, 0.65, Quantity_TOC_RGB); break; // Link 2: Muted Purple
+        // case 3: partColor = Quantity_Color(0.45, 0.70, 0.60, Quantity_TOC_RGB); break; // Link 3: Mint/Teal
+        // case 4: partColor = Quantity_Color(0.35, 0.50, 0.75, Quantity_TOC_RGB); break; // Link 4: Steel Blue
+        // case 5: partColor = Quantity_Color(0.70, 0.70, 0.25, Quantity_TOC_RGB); break; // Link 5: Yellow/Olive
+        // case 6: partColor = Quantity_Color(0.80, 0.75, 0.20, Quantity_TOC_RGB); break; // Link 6: Golden Yellow
+        // default: partColor = Quantity_Color(1.00, 1.00, 1.00, Quantity_TOC_RGB); break;
+        // }
+
+        // ==========================================================
+        // 🚀 THE PREMIUM MATERIAL UPGRADE (Shadow & Depth Fix)
+        // ==========================================================
+        Handle(Prs3d_ShadingAspect) shadingAspect = new Prs3d_ShadingAspect();
+
+        Graphic3d_MaterialAspect premiumMaterial(Graphic3d_NOM_PLASTIC);
+
+        // 1. Base & Diffuse Color (நேரடி வெளிச்சம் படும் இடங்களுக்கு 100% நிறம்)
+        premiumMaterial.SetColor(partColor);
+        premiumMaterial.SetDiffuseColor(partColor);
+
+        // 2. 🚀 THE MAGIC FIX: நிழல் விழும் பகுதிகளை (Ambient) 30% ஆகக் குறைக்கிறோம்!
+        Quantity_Color shadowColor(
+            partColor.Red() * 0.1,   // சிவப்பு நிறத்தில் 30%
+            partColor.Green() * 0.1, // பச்சை நிறத்தில் 30%
+            partColor.Blue() * 0.1,  // நீல நிறத்தில் 30%
+            Quantity_TOC_RGB
+            );
+        premiumMaterial.SetAmbientColor(shadowColor);
+
+        // 3. ✨ Soft Specular Highlight (பிரீமியம் பிளாஸ்டிக் பளபளப்பு)
+        premiumMaterial.SetSpecularColor(Quantity_Color(1.0, 1.0, 1.0, Quantity_TOC_RGB));
+        premiumMaterial.SetShininess(0.4);
+
+        // ==========================================================
+
+        shadingAspect->SetColor(partColor);
+        shadingAspect->SetMaterial(premiumMaterial);
+
+        aisShape->Attributes()->SetShadingAspect(shadingAspect);
+
+        // Fallback for context
         myContext->SetColor(aisShape, partColor, Standard_False);
+
         myContext->Display(aisShape, Standard_False);
         myRobotLinks.push_back(aisShape);
         myContext->Deactivate(aisShape);
         myView->Redraw();
-    }
+
+    } // (if condition-ஐ மூடும் பிராக்கெட்)
 
     // 3. Increment the tracker to the next part
     myCurrentLoadIndex++;
@@ -1007,6 +990,7 @@ void OcctWidget::loadNextRobotLink()
 
     QTimer::singleShot(50, this, &OcctWidget::loadNextRobotLink);
 }
+
 
 
 
@@ -1502,9 +1486,12 @@ void OcctWidget::loadToolShapeOnTip(const QString& toolName, double x, double y,
     toolTopoShape = BRepBuilderAPI_Transform(toolTopoShape, alignmentTransformation).Shape();
 
     myToolShape = new AIS_Shape(toolTopoShape);
-    myToolShape->SetColor(Quantity_NOC_BLUE1);
-    myToolShape->SetMaterial(Graphic3d_NOM_PLASTIC);
+    // 🎨 அடர்த்தியான அசல் ஆரஞ்சு (Deep Industrial Orange)
+    Quantity_Color toolColor(1.0, 0.35, 0.0, Quantity_TOC_RGB);
 
+    // எந்த சிக்கலும் இல்லாமல் நேரடியாக நிறத்தையும் பிளாஸ்டிக் லுக்கையும் செட் செய்கிறோம்
+    myToolShape->SetColor(toolColor);
+    myToolShape->SetMaterial(Graphic3d_NOM_PLASTIC);
     // Attach to Flange
     myContext->SetLocation(myToolShape, TopLoc_Location(myLastTipTrsf));
     myContext->SetDisplayMode(myToolShape, 1, Standard_False);
