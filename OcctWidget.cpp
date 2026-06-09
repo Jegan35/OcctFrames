@@ -77,6 +77,10 @@
 #include <Prs3d_Drawer.hxx>
 #include <Prs3d_ShadingAspect.hxx>
 #include <Graphic3d_MaterialAspect.hxx>
+#include <BRepTools.hxx>
+#include <Geom_Surface.hxx>
+#include <gp_Quaternion.hxx>
+#include <gp_EulerSequence.hxx>
 
 
 OcctWidget::OcctWidget(QWidget *parent) : QWidget(parent)
@@ -592,8 +596,25 @@ void OcctWidget::regenerateCSV()
 
 // ====================================================================
 
+
+static gp_Dir g_faceNormal(0, 0, 1);
+static bool g_hasFaceNormal = false;
+
 void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution)
 {
+    Standard_Real umin, umax, vmin, vmax;
+    BRepTools::UVBounds(face, umin, umax, vmin, vmax);
+    Handle(Geom_Surface) surf = BRep_Tool::Surface(face);
+
+    gp_Pnt p; gp_Vec d1u, d1v;
+    surf->D1((umin + umax) / 2.0, (vmin + vmax) / 2.0, p, d1u, d1v);
+
+    gp_Vec normVec = d1u.Crossed(d1v);
+    if (face.Orientation() == TopAbs_REVERSED) normVec.Reverse();
+
+    g_faceNormal = gp_Dir(normVec);
+    g_hasFaceNormal = true;
+
     TopExp_Explorer wireExplorer(face, TopAbs_WIRE);
     int loopCount = 1;
     for (; wireExplorer.More(); wireExplorer.Next()) {
@@ -603,6 +624,7 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
         processWire(wire, out, resolution);
         loopCount++;
     }
+    g_hasFaceNormal = false;
 }
 
 void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution)
@@ -615,10 +637,35 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
     if (discretizer.IsDone()) {
         for (int i = 1; i <= discretizer.NbPoints(); ++i) {
             Standard_Real param = discretizer.Parameter(i);
-            gp_Pnt pt = compCurve.Value(param);
+            gp_Pnt pt;
+            gp_Vec tangentVec;
+            compCurve.D1(param, pt, tangentVec);
 
-            // ✅ THE FIX: எதையும் கழிக்கக் கூடாது! நேரடியாக Absolute World Coordinate-ஐ அனுப்புகிறோம்.
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << "\n";
+            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
+
+            // 🚀 THE FIX: Tool X-Axis (Forward) pointing into the surface
+            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
+            gp_Dir y_axis(tangentVec);
+
+            if (x_axis.IsParallel(y_axis, 0.01)) {
+                y_axis = gp_Dir(0, 0, 1);
+                if (x_axis.IsParallel(y_axis, 0.01)) y_axis = gp_Dir(0, 1, 0);
+            }
+
+            gp_Dir z_axis = x_axis.Crossed(y_axis);
+            y_axis = z_axis.Crossed(x_axis);
+
+            gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+            gp_Ax3 toolPos(pt, z_axis, x_axis);
+
+            gp_Trsf trsf;
+            trsf.SetDisplacement(defaultOXY, toolPos);
+
+            Standard_Real rx, ry, rz;
+            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
+
+            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
+                << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
         }
     }
 }
@@ -635,10 +682,34 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
     if (discretizer.IsDone()) {
         for (int i = 1; i <= discretizer.NbPoints(); ++i) {
             Standard_Real param = discretizer.Parameter(i);
-            gp_Pnt pt = adaptor.Value(param);
+            gp_Pnt pt;
+            gp_Vec tangentVec;
+            adaptor.D1(param, pt, tangentVec);
 
-            // ✅ THE FIX: எதையும் கழிக்கக் கூடாது! நேரடியாக Absolute World Coordinate-ஐ அனுப்புகிறோம்.
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << "\n";
+            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
+
+            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
+            gp_Dir y_axis(tangentVec);
+
+            if (x_axis.IsParallel(y_axis, 0.01)) {
+                y_axis = gp_Dir(0, 0, 1);
+                if (x_axis.IsParallel(y_axis, 0.01)) y_axis = gp_Dir(0, 1, 0);
+            }
+
+            gp_Dir z_axis = x_axis.Crossed(y_axis);
+            y_axis = z_axis.Crossed(x_axis);
+
+            gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+            gp_Ax3 toolPos(pt, z_axis, x_axis);
+
+            gp_Trsf trsf;
+            trsf.SetDisplacement(defaultOXY, toolPos);
+
+            Standard_Real rx, ry, rz;
+            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
+
+            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
+                << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
         }
     }
 }

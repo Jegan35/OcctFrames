@@ -98,10 +98,7 @@ void ClientBackend::playbackTick()
 
         scurve::point pt = m_cartesianTrajectory[m_playbackIndex];
 
-        // 1. Target TCP in Base Frame (using the saved drawing orientation)
         KDL::Frame target_tcp_base(g_drawingRotation, KDL::Vector(pt.x, pt.y, pt.z));
-
-        // 2. Solve IK for the Flange by subtracting the Tool Frame Offset
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
 
         KDL::JntArray target_joints(6);
@@ -109,6 +106,7 @@ void ClientBackend::playbackTick()
         KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
         KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 50, 1e-4);
 
+        // 🚀 THE FIX: பிளேபேக்கிலும் Fast IK மட்டுமே ஓட வேண்டும். Hang ஆகாது!
         if (iksolver.CartToJnt(KDLJointCur, target_flange_base, target_joints) >= 0) {
             m_j1 = target_joints(0) * (180.0 / M_PI);
             m_j2 = target_joints(1) * (180.0 / M_PI);
@@ -344,10 +342,15 @@ void ClientBackend::stopDxfProgram()
     }
 }
 
+
+
+
+
 void ClientBackend::runDxfProgram(const QString &csvData)
 {
     QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
     std::vector<scurve::point> pathvec;
+    bool rotationSet = false;
 
     for (int i = 1; i < lines.size(); i++) {
         QString line = lines[i].trimmed();
@@ -359,22 +362,26 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             double occt_y = parts[1].toDouble();
             double occt_z = parts[2].toDouble();
 
-            // 🚀 THE FIX: X-ஐ X ஆகவும், Y-ஐ Y ஆகவும் நேராக மாற்றிவிட்டோம்
-            double kdl_x = occt_x;
-            double kdl_y = occt_y;
-            double kdl_z = occt_z;
+            pathvec.push_back({occt_x, occt_y, occt_z});
 
-            pathvec.push_back({kdl_x, kdl_y, kdl_z});
+            if (parts.size() >= 6 && !rotationSet) {
+                double rx = parts[3].toDouble() * (M_PI / 180.0);
+                double ry = parts[4].toDouble() * (M_PI / 180.0);
+                double rz = parts[5].toDouble() * (M_PI / 180.0);
+
+                g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
+                rotationSet = true;
+            }
         }
     }
 
     if (pathvec.size() < 2) return;
 
-    // SAVE THE CURRENT ROBOT ORIENTATION TO MAINTAIN IT DURING DRAWING
     KDL::Frame current_tcp_base = cart * m_toolFrame;
-    g_drawingRotation = current_tcp_base.M;
+    if (!rotationSet) {
+        g_drawingRotation = current_tcp_base.M;
+    }
 
-    // REACHABILITY CHECK (TOOL FRAME AWARE)
     KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
     KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
     KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 50, 1e-4);
@@ -384,18 +391,22 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     int failedPointIndex = -1;
 
     for (size_t i = 0; i < pathvec.size(); i++) {
-        // Target TCP in Base Frame (maintaining the saved orientation)
         KDL::Frame target_tcp_base(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
-
-        // Solve IK for the Flange by subtracting the Tool Frame Offset
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
-
         KDL::JntArray out_joints(6);
 
-        if (iksolver.CartToJnt(temp_joints, target_flange_base, out_joints) < 0) {
-            isReachable = false;
-            failedPointIndex = i + 1;
-            break;
+        if (i == 0) {
+            if (!m_kinematics.Ik_Optimal_Solution(target_flange_base, temp_joints, out_joints)) {
+                isReachable = false;
+                failedPointIndex = i + 1;
+                break;
+            }
+        } else {
+            if (iksolver.CartToJnt(temp_joints, target_flange_base, out_joints) < 0) {
+                isReachable = false;
+                failedPointIndex = i + 1;
+                break;
+            }
         }
         temp_joints = out_joints;
     }
@@ -405,23 +416,19 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         m_isCartesianPlayback = false;
         m_playbackIndex = 0;
 
-        QString msg = QString("OUT OF REACH!\n\nThe generated toolpath is physically impossible for the robot to reach.\nCalculation failed at point #%1.\n\nHint: Check tool orientation or move part closer.").arg(failedPointIndex);
+        QString msg = QString("OUT OF REACH!\nCalculation failed at point #%1.").arg(failedPointIndex);
         emit systemErrorTriggered(msg);
-
         emit programFinished();
         return;
     }
 
-    // Add current TCP position as start point
     pathvec.insert(pathvec.begin(), { current_tcp_base.p.x(), current_tcp_base.p.y(), current_tcp_base.p.z() });
 
     scurve trajectoryPlanner;
     double maxVel = 200.0 * (m_autoRunSpeedPercent / 100.0);
     if (maxVel < 5.0) maxVel = 5.0;
-    double maxAcc = 500.0;
 
-    m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, maxAcc, 0.0, 0.0, pathvec);
-
+    m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);

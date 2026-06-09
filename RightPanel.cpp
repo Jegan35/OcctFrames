@@ -219,25 +219,47 @@ QWidget* RightPanel::buildDxfFileWidget()
     dxfLayout->addWidget(dxfControlArea, 1);
 
     // --- Actions ---
+    // --- Actions ---
     connect(btnRunDxf, &QPushButton::clicked, this, [this, btnRunDxf]() {
         bool isRunning = btnRunDxf->property("isRunning").toBool();
         if (!isRunning) {
+            // START CLICKED
             QString csvData = m_txtCoordinates->toPlainText();
             if (csvData.isEmpty() || csvData.contains("Extracted XYZ")) return;
+
             btnRunDxf->setText("⏹ STOP");
             btnRunDxf->setStyleSheet("QPushButton { background-color:#EF4444; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#DC2626; }");
             btnRunDxf->setProperty("isRunning", true);
             QApplication::processEvents();
+
             if (m_backend) m_backend->runDxfProgram(csvData);
         } else {
+            // STOP CLICKED: Turn off the loop flag BEFORE stopping the backend
+            btnRunDxf->setProperty("isRunning", false);
             if (m_backend) m_backend->stopDxfProgram();
+
+            // Force the UI back to default immediately
+            btnRunDxf->setText("▶ RUN");
+            btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");
         }
     });
 
     if (m_backend) {
-        connect(m_backend, &ClientBackend::programFinished, this, [btnRunDxf]() {
-            btnRunDxf->setText("▶ RUN");
-            btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");
+        connect(m_backend, &ClientBackend::programFinished, this, [this, btnRunDxf]() {
+            // If the loop flag is still active (user didn't click STOP), restart the program!
+            if (btnRunDxf->property("isRunning").toBool()) {
+                QString csvData = m_txtCoordinates->toPlainText();
+                if (m_backend) m_backend->runDxfProgram(csvData);
+            } else {
+                // Program actually finished via STOP or an Error. Reset the UI.
+                btnRunDxf->setText("▶ RUN");
+                btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");
+            }
+        });
+
+        // 🚀 CRITICAL FIX: Break the loop if the robot fails to reach a point
+        // Otherwise, it will infinitely spam the "OUT OF REACH!" error message.
+        connect(m_backend, &ClientBackend::systemErrorTriggered, this, [btnRunDxf]() {
             btnRunDxf->setProperty("isRunning", false);
         });
     }

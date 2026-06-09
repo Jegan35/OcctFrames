@@ -1213,4 +1213,9 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/BRepPrimAPI_MakeSphere.hxx \
  /usr/local/include/opencascade/BRepPrim_Sphere.hxx \
  /usr/local/include/opencascade/Poly.hxx \
- /usr/local/include/opencascade/TColgp_SequenceOfPnt2d.hxx
+ /usr/local/include/opencascade/TColgp_SequenceOfPnt2d.hxx \
+ /usr/local/include/opencascade/BRepTools.hxx \
+ /usr/local/include/opencascade/TopTools_FormatVersion.hxx \
+ /usr/local/include/opencascade/TopTools_IndexedMapOfShape.hxx \
+ /usr/local/include/opencascade/gp_Quaternion.hxx \
+ /usr/local/include/opencascade/gp_EulerSequence.hxx
