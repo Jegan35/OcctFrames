@@ -112,6 +112,8 @@ void MainWindow::setupConnections()
             this->leftPanel->getMainOcctWidget()->clearTargetMarker();
         }
     });
+    connect(this->rightPanel, &RightPanel::requestMainTransformPart,
+            this->leftPanel->getMainOcctWidget(), &OcctWidget::transformLoadedPart);
 }
 
 MainWindow::~MainWindow() {}

@@ -60,6 +60,7 @@ signals:
     void requestDrawTargetMarker(double x, double y, double z);
     void requestSetJogStep(QString stepVal);
     void requestClearTargetMarker();
+    void requestMainTransformPart(double dx, double dy, double dz, double rx, double ry, double rz);
 
 
 private:
@@ -70,6 +71,9 @@ private:
     // UI Builders
     QWidget* buildDxfFileWidget();
     QWidget* buildFrameWidget();
+
+    QWidget* buildStepControlWidget();
+
 
     // Updates the frame list dynamically
     void refreshFrameUI();
@@ -93,7 +97,7 @@ private:
     // Layout elements
     QVBoxLayout *m_mainLayout = nullptr;
     QTabWidget *m_workspaceTabs = nullptr;
-
+    OcctWidget* m_stepPreviewWidget = nullptr;
     // DXF/STEP Page Items
     OcctWidget *m_dxfPreviewWidget = nullptr;
     QLabel *m_lblOrigin = nullptr;

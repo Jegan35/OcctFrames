@@ -58,6 +58,7 @@ void RightPanel::setupUI()
         );
 
     m_workspaceTabs->addTab(buildDxfFileWidget(), "DXF / STEP FILE");
+    m_workspaceTabs->addTab(buildStepControlWidget(), "STEP CONTROL");
     m_workspaceTabs->addTab(buildFrameWidget(), "USER FRAMES");
     m_workspaceTabs->addTab(buildToolWidget(), "TOOL FRAMES");
     m_workspaceTabs->addTab(buildCalcOriginWidget(), "CALC ORIGIN");
@@ -295,18 +296,10 @@ QWidget* RightPanel::buildFrameWidget()
     QPushButton *btnAdd = new QPushButton("+ ADD FRAME");
     btnAdd->setStyleSheet("QPushButton{background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;}");
 
-    QPushButton *btnLoadStep = new QPushButton("📂 LOAD STEP");
-    btnLoadStep->setStyleSheet("QPushButton{background:#1565C0; color:white; font-weight:bold; padding:8px; border-radius:4px;}");
-
-    QPushButton *btnClearStep = new QPushButton("🗑 CLEAR STEP");
-    btnClearStep->setStyleSheet("QPushButton{background:#64748B; color:white; font-weight:bold; padding:8px; border-radius:4px;}");
-
     QPushButton *btnDel = new QPushButton("🗑 DELETE MODE");
     btnDel->setStyleSheet("QPushButton{background:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px;}");
 
     toolsLay->addWidget(btnAdd);
-    toolsLay->addWidget(btnLoadStep);
-    toolsLay->addWidget(btnClearStep);
     toolsLay->addStretch();
     toolsLay->addWidget(btnDel);
     mainLay->addLayout(toolsLay);
@@ -330,29 +323,7 @@ QWidget* RightPanel::buildFrameWidget()
         refreshFrameUI();
     });
 
-    connect(btnLoadStep, &QPushButton::clicked, this, [this](){
-        // 🚀 THE FIX: File Dialog-ல் DXF ஃபைல்களையும் காட்டுவதற்கான மாற்றம்!
-        QString filePath = QFileDialog::getOpenFileName(this, "Select CAD File", "", "CAD Files (*.step *.stp *.dxf *.STEP)");
 
-        if (!filePath.isEmpty()) {
-            if (m_dxfPreviewWidget) m_dxfPreviewWidget->loadStepFile(filePath.toStdString());
-            emit requestMainLoadStep(filePath);
-
-            if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
-                double fx = m_userFrames[m_activeFrameIndex].x;
-                double fy = m_userFrames[m_activeFrameIndex].y;
-                double fz = m_userFrames[m_activeFrameIndex].z;
-                if (m_dxfPreviewWidget) m_dxfPreviewWidget->setUserFrameOrigin(fx, fy, fz);
-                emit requestMainSetUserFrame(fx, fy, fz);
-                updateOriginLabel(fx, fy, fz);
-            }
-        }
-    });
-
-    connect(btnClearStep, &QPushButton::clicked, this, [this](){
-        if (m_dxfPreviewWidget) m_dxfPreviewWidget->clearLoadedPart();
-        emit requestMainClearStep();
-    });
 
     connect(btnDel, &QPushButton::clicked, this, [this, btnDel](){
         if (!m_frameDeleteMode) {
@@ -1146,3 +1117,159 @@ void RightPanel::refreshRecordListUI()
     }
 }
 
+
+// ============================================================
+// 🚀 STEP FILE FULL CONTROL WIDGET (3D View + Transform)
+// ============================================================
+QWidget* RightPanel::buildStepControlWidget()
+{
+    QWidget *w = new QWidget();
+    w->setStyleSheet("background:#0d1117; color: white;");
+
+    QVBoxLayout *mainLay = new QVBoxLayout(w);
+    mainLay->setContentsMargins(15, 15, 15, 10);
+    mainLay->setSpacing(15);
+
+    // --------------------------------------------------------
+    // TOP SIDE: 3D View Area
+    // --------------------------------------------------------
+    QWidget *viewArea = new QWidget();
+    viewArea->setStyleSheet("background-color:#0a0d14; border:1px solid #1e2330; border-radius:5px;");
+    viewArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    QVBoxLayout *viewLayout = new QVBoxLayout(viewArea);
+    viewLayout->setContentsMargins(4, 4, 4, 4);
+
+    m_stepPreviewWidget = new OcctWidget(this);
+    m_stepPreviewWidget->setViewRole(OcctWidget::SideRole);
+    viewLayout->addWidget(m_stepPreviewWidget);
+    mainLay->addWidget(viewArea, 1);
+
+    // --------------------------------------------------------
+    // BOTTOM SIDE: Control Panel
+    // --------------------------------------------------------
+    QWidget *ctrlArea = new QWidget();
+    QVBoxLayout *ctrlLay = new QVBoxLayout(ctrlArea);
+    ctrlLay->setContentsMargins(0, 0, 0, 0);
+    ctrlLay->setSpacing(10);
+
+    // --- ROW 1: Load, Pick Origin, Clear ---
+    QHBoxLayout *row1 = new QHBoxLayout();
+
+    QPushButton *btnLoadStep = new QPushButton("📂 LOAD STEP");
+    btnLoadStep->setStyleSheet("background:#1565C0; color:white; font-weight:bold; padding:8px; border-radius:4px;");
+
+    QPushButton *btnPickOrigin = new QPushButton("🎯 SET ORIGIN");
+    btnPickOrigin->setStyleSheet("background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;");
+
+    // 🚀 THE FIX 1: புதிய CLEAR STEP பட்டன்
+    QPushButton *btnClearStep = new QPushButton("🗑 CLEAR STEP");
+    btnClearStep->setStyleSheet("background:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px;");
+
+    row1->addWidget(btnLoadStep);
+    row1->addWidget(btnPickOrigin);
+    row1->addWidget(btnClearStep);
+    ctrlLay->addLayout(row1);
+
+    // --- ROW 2: Manual Transform & Rotation ---
+    QGroupBox *grpTrans = new QGroupBox("MANUAL PART TRANSFORM & ROTATION");
+    grpTrans->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; color:#00E5FF; font-weight:bold; padding-top:15px; }");
+    QGridLayout *gLay = new QGridLayout(grpTrans);
+
+    QString editStyle = "QLineEdit { background:#161b22; color:#FFFFFF; border:1px solid #30363d; border-radius:3px; padding:6px; font-weight:bold; } QLineEdit:focus { border:1px solid #00E5FF; }";
+
+    QLineEdit *txtX = new QLineEdit("0.0"); txtX->setStyleSheet(editStyle);
+    QLineEdit *txtY = new QLineEdit("0.0"); txtY->setStyleSheet(editStyle);
+    QLineEdit *txtZ = new QLineEdit("0.0"); txtZ->setStyleSheet(editStyle);
+    QLineEdit *txtRx = new QLineEdit("0.0"); txtRx->setStyleSheet(editStyle);
+    QLineEdit *txtRy = new QLineEdit("0.0"); txtRy->setStyleSheet(editStyle);
+    QLineEdit *txtRz = new QLineEdit("0.0"); txtRz->setStyleSheet(editStyle);
+
+    gLay->addWidget(new QLabel("Offset X (mm):"), 0, 0); gLay->addWidget(txtX, 0, 1);
+    gLay->addWidget(new QLabel("Offset Y (mm):"), 0, 2); gLay->addWidget(txtY, 0, 3);
+    gLay->addWidget(new QLabel("Offset Z (mm):"), 0, 4); gLay->addWidget(txtZ, 0, 5);
+
+    gLay->addWidget(new QLabel("Rot Rx (deg):"), 1, 0); gLay->addWidget(txtRx, 1, 1);
+    gLay->addWidget(new QLabel("Rot Ry (deg):"), 1, 2); gLay->addWidget(txtRy, 1, 3);
+    gLay->addWidget(new QLabel("Rot Rz (deg):"), 1, 4); gLay->addWidget(txtRz, 1, 5);
+
+    QPushButton *btnApplyTransform = new QPushButton("APPLY\nTRANSFORM");
+    btnApplyTransform->setStyleSheet("background:#8B5CF6; color:white; font-weight:bold; padding:8px; border-radius:3px;");
+    gLay->addWidget(btnApplyTransform, 0, 6, 2, 1);
+
+    ctrlLay->addWidget(grpTrans);
+    mainLay->addWidget(ctrlArea, 0);
+
+    // ==========================================
+    // 🔗 SYNCHRONIZED BUTTON CONNECTIONS
+    // ==========================================
+    connect(btnLoadStep, &QPushButton::clicked, this, [=](){
+        QString filePath = QFileDialog::getOpenFileName(this, "Select CAD File", "", "CAD Files (*.step *.stp *.dxf *.STEP)");
+        if (!filePath.isEmpty()) {
+
+            m_stepPreviewWidget->loadStepFile(filePath.toStdString());
+            m_stepPreviewWidget->setSelectionMode(0);
+
+            if (m_dxfPreviewWidget) m_dxfPreviewWidget->loadStepFile(filePath.toStdString());
+            emit requestMainLoadStep(filePath);
+
+            double ufX = 0.0, ufY = 0.0, ufZ = 0.0;
+            if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
+                ufX = m_userFrames[m_activeFrameIndex].x;
+                ufY = m_userFrames[m_activeFrameIndex].y;
+                ufZ = m_userFrames[m_activeFrameIndex].z;
+            }
+
+            txtX->setText(QString::number(ufX));
+            txtY->setText(QString::number(ufY));
+            txtZ->setText(QString::number(ufZ));
+            txtRx->setText("0.0");
+            txtRy->setText("0.0");
+            txtRz->setText("0.0");
+
+            m_stepPreviewWidget->transformLoadedPart(ufX, ufY, ufZ, 0, 0, 0);
+            if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(ufX, ufY, ufZ, 0, 0, 0);
+            emit requestMainTransformPart(ufX, ufY, ufZ, 0, 0, 0);
+        }
+    });
+
+    // 🚀 THE FIX 1 (Implementation): Clear Button Logic
+    connect(btnClearStep, &QPushButton::clicked, this, [=](){
+        if (m_stepPreviewWidget) m_stepPreviewWidget->clearLoadedPart();
+        if (m_dxfPreviewWidget) m_dxfPreviewWidget->clearLoadedPart();
+        emit requestMainClearStep(); // Main Graph-ல் இருந்தும் அழியும்
+
+        txtX->setText("0.0"); txtY->setText("0.0"); txtZ->setText("0.0");
+        txtRx->setText("0.0"); txtRy->setText("0.0"); txtRz->setText("0.0");
+    });
+
+    connect(btnPickOrigin, &QPushButton::clicked, this, [this](){
+        m_stepPreviewWidget->enableOriginSelectionMode();
+    });
+
+    // 🚀 THE FIX 2: Apply Transform + Sync User Frame
+    connect(btnApplyTransform, &QPushButton::clicked, this, [=](){
+        double dx = txtX->text().toDouble();
+        double dy = txtY->text().toDouble();
+        double dz = txtZ->text().toDouble();
+        double rx = txtRx->text().toDouble();
+        double ry = txtRy->text().toDouble();
+        double rz = txtRz->text().toDouble();
+
+        // 1. Rotate & Move in Graphics
+        m_stepPreviewWidget->transformLoadedPart(dx, dy, dz, rx, ry, rz);
+        if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(dx, dy, dz, rx, ry, rz);
+        emit requestMainTransformPart(dx, dy, dz, rx, ry, rz);
+
+        // 🚀 2. Sync to Active User Frame Automatically!
+        if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
+            m_userFrames[m_activeFrameIndex].x = dx;
+            m_userFrames[m_activeFrameIndex].y = dy;
+            m_userFrames[m_activeFrameIndex].z = dz;
+
+            saveUserFramesConfig(); // Data-வை சேவ் செய்கிறோம்
+            refreshFrameUI();       // User Frame Tab-ஐ அப்டேட் செய்கிறோம்
+        }
+    });
+
+    return w;
+}

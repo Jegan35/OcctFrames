@@ -83,6 +83,9 @@
 #include <gp_EulerSequence.hxx>
 
 
+static gp_Pnt g_partCenter(0, 0, 0);
+static bool g_hasPartCenter = false;
+
 OcctWidget::OcctWidget(QWidget *parent) : QWidget(parent)
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -235,7 +238,7 @@ void OcctWidget::loadStepFile(const std::string& filePath)
     QString qFilePath = QString::fromStdString(filePath);
 
     // =======================================================
-    // 🚀 ULTIMATE SAFE DXF READER (With Try-Catch Crash Shield)
+    // 🚀 DXF READER (With Try-Catch Crash Shield)
     // =======================================================
     if (qFilePath.endsWith(".dxf", Qt::CaseInsensitive)) {
         QFile file(qFilePath);
@@ -254,15 +257,10 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         int currentCode = -1;
         int edgesAdded = 0;
 
-        // 🛡️ ULTIMATE SHIELD LAMBDA
         auto saveEdgeSafely = [&](double _x1, double _y1, double _z1, double _x2, double _y2, double _z2) {
             gp_Pnt p1(_x1, _y1, _z1);
             gp_Pnt p2(_x2, _y2, _z2);
-
-            // 1. Strict Distance Check (0.01 mm க்கும் குறைவான கோடுகளை நிராகரித்துவிடும்)
             if (p1.Distance(p2) < 0.01) return false;
-
-            // 2. The Try-Catch Shield (க்ராஷ் ஆவதைத் தடுக்கும் கவசம்)
             try {
                 BRepBuilderAPI_MakeEdge edgeMaker(p1, p2);
                 if (edgeMaker.IsDone()) {
@@ -270,7 +268,6 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                     return true;
                 }
             } catch (...) {
-                // OCCT க்ராஷ் ஆக முயன்றால், அதை சத்தமில்லாமல் தடுத்துவிடும்!
                 return false;
             }
             return false;
@@ -289,7 +286,7 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                         if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
                     }
                     inLine = true;
-                    x1 = y1 = z1 = x2 = y2 = z2 = 0.0; // Reset
+                    x1 = y1 = z1 = x2 = y2 = z2 = 0.0;
                 } else if (inLine) {
                     double val = line.toDouble();
                     if (currentCode == 10) x1 = val;
@@ -308,36 +305,38 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         file.close();
 
         if (edgesAdded > 0) {
-            // 3. Display Shield (வரையும்போது க்ராஷ் ஆனால் தடுப்பதற்கு)
             try {
-                myLoadedPart = new AIS_Shape(comp);
+                // 🚀 THE FIX: DXF மையத்தைக் கண்டுபிடித்து, அதையே நிரந்தர Origin ஆக்குகிறோம்
+                Bnd_Box boundingBox;
+                BRepBndLib::Add(comp, boundingBox);
+                Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
+                boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+
+                gp_Pnt center((xMin + xMax) / 2.0, (yMin + yMax) / 2.0, (zMin + zMax) / 2.0);
+                gp_Trsf centerTrsf;
+                centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
+
+                // பார்ட்டை மையத்திற்கு நகர்த்துகிறோம்
+                TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(comp, centerTrsf).Shape();
+                myLoadedPart = new AIS_Shape(centeredShape);
+
                 myContext->SetColor(myLoadedPart, Quantity_NOC_CYAN1, Standard_False);
                 myContext->SetWidth(myLoadedPart, 3.0, Standard_False);
                 myContext->Display(myLoadedPart, Standard_True);
 
-                myCustomOrigin = gp_Pnt(0.0, 0.0, 0.0);
-                offsetWorkpiece(0.0, 0.0, 0.0);
-
-                if (myRole == OcctWidget::SideRole) {
-                    myView->FitAll();
-                    myView->Redraw();
-                } else {
-                    myView->Redraw();
-                }
-
+                if (myRole == OcctWidget::SideRole) { myView->FitAll(); }
+                myView->Redraw();
                 setSelectionMode(myCurrentSelectionMode);
-                emit statusUpdate(QString("✅ DXF Loaded Successfully (%1 Valid Lines).").arg(edgesAdded));
+                emit statusUpdate(QString("✅ DXF Centered & Loaded (%1 Lines).").arg(edgesAdded));
             } catch (...) {
                 emit statusUpdate("❌ Error: DXF contains severely corrupted geometry.");
             }
-        } else {
-            emit statusUpdate("❌ Error: No valid lines found in DXF.");
         }
         return;
     }
 
     // =======================================================
-    // EXISTING STEP READER CODE
+    // 🚀 STEP READER
     // =======================================================
     Handle(TDocStd_Document) aDoc;
     Handle(XCAFApp_Application) anApp = XCAFApp_Application::GetApplication();
@@ -354,28 +353,39 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         Handle(XCAFDoc_ShapeTool) aShapeTool = XCAFDoc_DocumentTool::ShapeTool(aDoc->Main());
         TDF_LabelSequence labels;
         aShapeTool->GetFreeShapes(labels);
+
         if (labels.Length() > 0) {
             TDF_Label aLabel = labels.Value(1);
-            myLoadedPart = new XCAFPrs_AISObject(aLabel);
+
+            // 🚀 THE FIX: STEP மையத்தைக் கண்டுபிடித்து, அதையே நிரந்தர Origin ஆக்குகிறோம்
+            TopoDS_Shape baseShape = XCAFDoc_ShapeTool::GetShape(aLabel);
+            Bnd_Box boundingBox;
+            BRepBndLib::Add(baseShape, boundingBox);
+            Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
+            boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+
+            gp_Pnt center((xMin + xMax) / 2.0, (yMin + yMax) / 2.0, (zMin + zMax) / 2.0);
+            gp_Trsf centerTrsf;
+            centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
+
+            // பார்ட்டை மையத்திற்கு நகர்த்துகிறோம்
+            TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(baseShape, centerTrsf).Shape();
+
+            myLoadedPart = new AIS_Shape(centeredShape);
+            myContext->SetColor(myLoadedPart, Quantity_NOC_GRAY75, Standard_False);
+            myContext->SetMaterial(myLoadedPart, Graphic3d_NOM_ALUMINIUM, Standard_False);
+
             myContext->SetDisplayMode(myLoadedPart, 1, Standard_False);
             myContext->Display(myLoadedPart, Standard_True);
 
-            myCustomOrigin = gp_Pnt(0.0, 0.0, 0.0);
-            offsetWorkpiece(0.0, -800.0, 600.0);
-
-            if (myRole == OcctWidget::SideRole) {
-                myView->FitAll();
-                myView->Redraw();
-            } else {
-                myView->Redraw();
-            }
+            if (myRole == OcctWidget::SideRole) { myView->FitAll(); }
+            myView->Redraw();
             setSelectionMode(myCurrentSelectionMode);
-            emit statusUpdate("✅ Workpiece Loaded (Solid & Colored).");
+            emit statusUpdate("✅ Workpiece Centered & Loaded.");
         }
-    } else {
-        emit statusUpdate("❌ Error: Failed to load STEP file via XDE.");
     }
 }
+
 
 
 
@@ -599,6 +609,7 @@ void OcctWidget::regenerateCSV()
 
 static gp_Dir g_faceNormal(0, 0, 1);
 static bool g_hasFaceNormal = false;
+
 
 void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution)
 {
@@ -1610,4 +1621,37 @@ void OcctWidget::clearTargetMarker()
         myTargetMarker.Nullify();
         myContext->UpdateCurrentViewer();
     }
+}
+
+void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx, double ry, double rz)
+{
+    if (myLoadedPart.IsNull()) return;
+
+    double radX = rx * (M_PI / 180.0);
+    double radY = ry * (M_PI / 180.0);
+    double radZ = rz * (M_PI / 180.0);
+
+    gp_Trsf rotX, rotY, rotZ, toOffset;
+
+    // 1. தன் மையத்திலேயே சுழற்றுகிறோம் (In-place rotation)
+    rotX.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), radX);
+    rotY.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,1,0)), radY);
+    rotZ.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,0,1)), radZ);
+
+    // 2. User Frame இடத்திற்கு நகர்த்துகிறோம்
+    toOffset.SetTranslation(gp_Vec(dx, dy, dz));
+
+    // Combine: Rotate -> Translate
+    gp_Trsf finalTrsf = toOffset * rotZ * rotY * rotX;
+
+    myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
+
+    if (!myOriginMarker.IsNull()) {
+        gp_Ax2 newCoords(gp_Pnt(dx, dy, dz), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0));
+        Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(newCoords);
+        myOriginMarker->SetComponent(placement);
+        myContext->Redisplay(myOriginMarker, Standard_True);
+    }
+
+    myContext->UpdateCurrentViewer();
 }
