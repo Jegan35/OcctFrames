@@ -85,6 +85,7 @@
 
 static gp_Pnt g_partCenter(0, 0, 0);
 static bool g_hasPartCenter = false;
+static double g_currentRx = 0.0, g_currentRy = 0.0, g_currentRz = 0.0;
 
 OcctWidget::OcctWidget(QWidget *parent) : QWidget(parent)
 {
@@ -1623,32 +1624,56 @@ void OcctWidget::clearTargetMarker()
     }
 }
 
+
+
+
 void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx, double ry, double rz)
 {
     if (myLoadedPart.IsNull()) return;
+
+    // 🚀 தற்போதைய User Frame & கோணத்தை ஞாபகம் வைத்துக்கொள்கிறோம்
+    g_currentRx = rx; g_currentRy = ry; g_currentRz = rz;
+    myCustomOrigin = gp_Pnt(dx, dy, dz);
 
     double radX = rx * (M_PI / 180.0);
     double radY = ry * (M_PI / 180.0);
     double radZ = rz * (M_PI / 180.0);
 
-    gp_Trsf rotX, rotY, rotZ, toOffset;
+    gp_Trsf toOrigin, rotX, rotY, rotZ, toUserFrame;
 
-    // 1. தன் மையத்திலேயே சுழற்றுகிறோம் (In-place rotation)
+    // 1. பார்ட்டின் மையத்தை 0,0,0-க்கு நகர்த்துகிறோம்
+    if (g_hasPartCenter) {
+        toOrigin.SetTranslation(gp_Vec(-g_partCenter.X(), -g_partCenter.Y(), -g_partCenter.Z()));
+    }
+
+    // 2. 0,0,0-ல் வைத்து தன் அச்சிலேயே சுழற்றுகிறோம்
     rotX.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), radX);
     rotY.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,1,0)), radY);
     rotZ.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,0,1)), radZ);
 
-    // 2. User Frame இடத்திற்கு நகர்த்துகிறோம்
-    toOffset.SetTranslation(gp_Vec(dx, dy, dz));
+    // 3. User Frame இடத்திற்கு நகர்த்துகிறோம்
+    toUserFrame.SetTranslation(gp_Vec(dx, dy, dz));
 
-    // Combine: Rotate -> Translate
-    gp_Trsf finalTrsf = toOffset * rotZ * rotY * rotX;
+    // 🚀 THE FIX: Origin Marker-க்கான Transformation (Center-ல் இருந்து)
+    // இது மார்க்கரை நகர்த்தவும் செய்யும், கூடவே சுழற்றவும் செய்யும்!
+    gp_Trsf markerTrsf = toUserFrame * rotZ * rotY * rotX;
 
+    // பார்ட்டுக்கான Transformation (Origin Offset சேர்த்து)
+    gp_Trsf finalTrsf = markerTrsf * toOrigin;
+
+    // 1️⃣ பார்ட்டை நகர்த்துகிறோம்
     myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
 
+    // 2️⃣ THE FIX: User Frame Marker-ஐ (அம்புக்குறிகள்) பார்ட்டோடு சேர்ந்தே ஒட்டினாற்போல் வைக்கிறோம்!
+    if (!myUserFrameMarker.IsNull()) {
+        myContext->SetLocation(myUserFrameMarker, TopLoc_Location(markerTrsf));
+    }
+
+    // 3️⃣ ஒருவேளை பழைய Origin Marker இருந்தால் அதையும் அப்டேட் செய்கிறோம்
     if (!myOriginMarker.IsNull()) {
-        gp_Ax2 newCoords(gp_Pnt(dx, dy, dz), gp_Dir(0, 0, 1), gp_Dir(1, 0, 0));
-        Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(newCoords);
+        gp_Ax3 base(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+        base.Transform(markerTrsf);
+        Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(base.Ax2());
         myOriginMarker->SetComponent(placement);
         myContext->Redisplay(myOriginMarker, Standard_True);
     }
