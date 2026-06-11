@@ -35,13 +35,6 @@ ClientBackend::ClientBackend(QObject *parent) : QObject(parent)
     connect(m_jogTimer, &QTimer::timeout, this, &ClientBackend::jogTick);
 }
 
-// SET TOOL FRAME FROM UI
-void ClientBackend::setToolFrame(double x, double y, double z)
-{
-    m_toolFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
-    qDebug() << "BACKEND: Tool Frame Math Set -> X:" << x << "Y:" << y << "Z:" << z;
-    updateUIWithUserFrame(); // Update UI immediately to show new TCP coordinates
-}
 
 void ClientBackend::calculateAndRunHome()
 {
@@ -57,6 +50,15 @@ void ClientBackend::calculateAndRunHome()
 
     if (D < 0.001) {
         qDebug() << "Already at Home position!";
+        // Force perfect zeros
+        m_j1 = 0.0; m_j2 = 0.0; m_j3 = 0.0; m_j4 = 0.0; m_j5 = 90.0; m_j6 = 0.0;
+        KDLJointCur(0) = 0.0; KDLJointCur(1) = 0.0; KDLJointCur(2) = 0.0;
+        KDLJointCur(3) = 0.0; KDLJointCur(4) = 90.0 * (M_PI/180.0); KDLJointCur(5) = 0.0;
+        m_kinematics.Fk();
+        updateUIWithUserFrame();
+
+        // 🚀 THE FIX: Force the UI to catch the final perfect zero!
+        QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
         return;
     }
 
@@ -69,6 +71,8 @@ void ClientBackend::calculateAndRunHome()
 
     for (size_t i = 0; i < rawSCurve.size(); i++) {
         double progress = (D > 0) ? (rawSCurve[i].x / D) : 0.0;
+        if (progress > 1.0) progress = 1.0;
+
         JointPoint jp;
         jp.j1 = start_j[0] + (target_j[0] - start_j[0]) * progress;
         jp.j2 = start_j[1] + (target_j[1] - start_j[1]) * progress;
@@ -79,79 +83,20 @@ void ClientBackend::calculateAndRunHome()
         m_localJointTrajectory.append(jp);
     }
 
+    // HARD SNAP the absolute last point to EXACT targets
+    JointPoint finalJp;
+    finalJp.j1 = 0.0; finalJp.j2 = 0.0; finalJp.j3 = 0.0;
+    finalJp.j4 = 0.0; finalJp.j5 = 90.0; finalJp.j6 = 0.0;
+    m_localJointTrajectory.append(finalJp);
+
     m_isCartesianPlayback = false;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
 }
 
-void ClientBackend::playbackTick()
-{
-    // ==========================================
-    // 1. CARTESIAN PLAYBACK WITH TOOL FRAME
-    // ==========================================
-    if (m_isCartesianPlayback) {
-        if (m_playbackIndex >= m_cartesianTrajectory.size()) {
-            m_playbackTimer->stop();
-            emit programFinished();
-            return;
-        }
 
-        scurve::point pt = m_cartesianTrajectory[m_playbackIndex];
 
-        KDL::Frame target_tcp_base(g_drawingRotation, KDL::Vector(pt.x, pt.y, pt.z));
-        KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
 
-        KDL::JntArray target_joints(6);
-        KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
-        KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
-        KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 50, 1e-4);
-
-        // 🚀 THE FIX: பிளேபேக்கிலும் Fast IK மட்டுமே ஓட வேண்டும். Hang ஆகாது!
-        if (iksolver.CartToJnt(KDLJointCur, target_flange_base, target_joints) >= 0) {
-            m_j1 = target_joints(0) * (180.0 / M_PI);
-            m_j2 = target_joints(1) * (180.0 / M_PI);
-            m_j3 = target_joints(2) * (180.0 / M_PI);
-            m_j4 = target_joints(3) * (180.0 / M_PI);
-            m_j5 = target_joints(4) * (180.0 / M_PI);
-            m_j6 = target_joints(5) * (180.0 / M_PI);
-
-            KDLJointCur = target_joints;
-        } else {
-            qDebug() << "IK FAILED! Stopping Robot.";
-            m_playbackTimer->stop();
-            emit programFinished();
-            return;
-        }
-
-        m_playbackIndex += 16;
-    }
-    // ==========================================
-    // 2. JOINT PLAYBACK
-    // ==========================================
-    else {
-        if (m_playbackIndex >= m_localJointTrajectory.size()) {
-            m_playbackTimer->stop();
-            emit programFinished();
-            return;
-        }
-
-        JointPoint jp = m_localJointTrajectory[m_playbackIndex];
-        m_j1 = jp.j1; m_j2 = jp.j2; m_j3 = jp.j3;
-        m_j4 = jp.j4; m_j5 = jp.j5; m_j6 = jp.j6;
-
-        KDLJointCur(0) = m_j1 * (M_PI / 180.0);
-        KDLJointCur(1) = m_j2 * (M_PI / 180.0);
-        KDLJointCur(2) = m_j3 * (M_PI / 180.0);
-        KDLJointCur(3) = m_j4 * (M_PI / 180.0);
-        KDLJointCur(4) = m_j5 * (M_PI / 180.0);
-        KDLJointCur(5) = m_j6 * (M_PI / 180.0);
-
-        m_playbackIndex += 16;
-    }
-
-    m_kinematics.Fk();
-    updateUIWithUserFrame();
-}
 
 void ClientBackend::setGlobalSpeed(int percent) { m_globalSpeed = percent; }
 void ClientBackend::setCartesianSpeed(double mms) { m_cartSpeed = mms; }
@@ -346,21 +291,50 @@ void ClientBackend::stopDxfProgram()
 
 
 
+
+
+
+void ClientBackend::setUserFrame(double x, double y, double z)
+{
+    m_userFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
+    qDebug() << "BACKEND: User Frame Math Set -> X:" << x << "Y:" << y << "Z:" << z;
+
+    // 🚀 THE FIX: Force the robot to read its current joint angles so the math updates instantly!
+    m_kinematics.Fk();
+
+    updateUIWithUserFrame();
+}
+
+// Do the same for Tool Frame just to be safe!
+void ClientBackend::setToolFrame(double x, double y, double z)
+{
+    m_toolFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
+    qDebug() << "BACKEND: Tool Frame Math Set -> X:" << x << "Y:" << y << "Z:" << z;
+
+    m_kinematics.Fk(); // 🚀 Force refresh
+
+    updateUIWithUserFrame();
+}
+
+
+
 void ClientBackend::runDxfProgram(const QString &csvData)
 {
     QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
     std::vector<scurve::point> pathvec;
     bool rotationSet = false;
 
-    for (int i = 1; i < lines.size(); i++) {
+    // 🚀 FIX 1: Start at i = 0 because we removed the "X,Y,Z" header!
+    for (int i = 0; i < lines.size(); i++) {
         QString line = lines[i].trimmed();
         if (line.startsWith("---") || line.isEmpty()) continue;
 
         QStringList parts = line.split(',');
         if (parts.size() >= 3) {
-            double occt_x = parts[0].toDouble();
-            double occt_y = parts[1].toDouble();
-            double occt_z = parts[2].toDouble();
+            // 🚀 FIX 2: Multiply by 1000.0 to convert meters back to millimeters for the robot!
+            double occt_x = parts[0].toDouble() * 1000.0;
+            double occt_y = parts[1].toDouble() * 1000.0;
+            double occt_z = parts[2].toDouble() * 1000.0;
 
             pathvec.push_back({occt_x, occt_y, occt_z});
 
@@ -377,9 +351,12 @@ void ClientBackend::runDxfProgram(const QString &csvData)
 
     if (pathvec.size() < 2) return;
 
+    // Get the CURRENT TCP in LOCAL User Frame coordinates!
     KDL::Frame current_tcp_base = cart * m_toolFrame;
+    KDL::Frame current_user_tcp = m_userFrame.Inverse() * current_tcp_base;
+
     if (!rotationSet) {
-        g_drawingRotation = current_tcp_base.M;
+        g_drawingRotation = current_user_tcp.M;
     }
 
     KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
@@ -391,7 +368,13 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     int failedPointIndex = -1;
 
     for (size_t i = 0; i < pathvec.size(); i++) {
-        KDL::Frame target_tcp_base(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
+        // 1. Build the target as a LOCAL coordinate
+        KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
+
+        // 2. Convert LOCAL to GLOBAL by multiplying User Frame!
+        KDL::Frame target_tcp_base = m_userFrame * local_tcp;
+
+        // 3. Apply Tool Frame to get Flange target
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
         KDL::JntArray out_joints(6);
 
@@ -422,7 +405,8 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         return;
     }
 
-    pathvec.insert(pathvec.begin(), { current_tcp_base.p.x(), current_tcp_base.p.y(), current_tcp_base.p.z() });
+    // Insert the local starting point, not the global one!
+    pathvec.insert(pathvec.begin(), { current_user_tcp.p.x(), current_user_tcp.p.y(), current_user_tcp.p.z() });
 
     scurve trajectoryPlanner;
     double maxVel = 200.0 * (m_autoRunSpeedPercent / 100.0);
@@ -432,4 +416,115 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
+}
+
+void ClientBackend::playbackTick()
+{
+    // ==========================================
+    // 1. CARTESIAN PLAYBACK WITH TOOL FRAME AND USER FRAME
+    // ==========================================
+    if (m_isCartesianPlayback) {
+        if (m_cartesianTrajectory.empty()) {
+            m_playbackTimer->stop();
+            emit programFinished();
+            return;
+        }
+
+        bool isFinished = false;
+        int currentIdx = m_playbackIndex;
+
+        // Clamp to the exact last point before finishing
+        if (currentIdx >= m_cartesianTrajectory.size() - 1) {
+            currentIdx = m_cartesianTrajectory.size() - 1;
+            isFinished = true;
+        }
+
+        scurve::point pt = m_cartesianTrajectory[currentIdx];
+
+        KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pt.x, pt.y, pt.z));
+        KDL::Frame target_tcp_base = m_userFrame * local_tcp;
+        KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
+
+        KDL::JntArray target_joints(6);
+        KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
+        KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
+        KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 50, 1e-4);
+
+        if (iksolver.CartToJnt(KDLJointCur, target_flange_base, target_joints) >= 0) {
+            m_j1 = target_joints(0) * (180.0 / M_PI);
+            m_j2 = target_joints(1) * (180.0 / M_PI);
+            m_j3 = target_joints(2) * (180.0 / M_PI);
+            m_j4 = target_joints(3) * (180.0 / M_PI);
+            m_j5 = target_joints(4) * (180.0 / M_PI);
+            m_j6 = target_joints(5) * (180.0 / M_PI);
+
+            KDLJointCur = target_joints;
+        } else {
+            qDebug() << "IK FAILED! Stopping Robot.";
+            m_playbackTimer->stop();
+            emit programFinished();
+            return;
+        }
+
+        if (isFinished) {
+            m_playbackTimer->stop();
+            m_kinematics.Fk();
+            updateUIWithUserFrame();
+
+            // 🚀 THE FIX: Force the UI to catch the final point!
+            QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
+
+            emit programFinished();
+            return;
+        }
+
+        m_playbackIndex += 16;
+    }
+    // ==========================================
+    // 2. JOINT PLAYBACK (HOMING)
+    // ==========================================
+    else {
+        if (m_localJointTrajectory.empty()) {
+            m_playbackTimer->stop();
+            emit programFinished();
+            return;
+        }
+
+        bool isFinished = false;
+        int currentIdx = m_playbackIndex;
+
+        // Clamp to the exact last point (Perfect 0 and 90)
+        if (currentIdx >= m_localJointTrajectory.size() - 1) {
+            currentIdx = m_localJointTrajectory.size() - 1;
+            isFinished = true;
+        }
+
+        JointPoint jp = m_localJointTrajectory[currentIdx];
+        m_j1 = jp.j1; m_j2 = jp.j2; m_j3 = jp.j3;
+        m_j4 = jp.j4; m_j5 = jp.j5; m_j6 = jp.j6;
+
+        KDLJointCur(0) = m_j1 * (M_PI / 180.0);
+        KDLJointCur(1) = m_j2 * (M_PI / 180.0);
+        KDLJointCur(2) = m_j3 * (M_PI / 180.0);
+        KDLJointCur(3) = m_j4 * (M_PI / 180.0);
+        KDLJointCur(4) = m_j5 * (M_PI / 180.0);
+        KDLJointCur(5) = m_j6 * (M_PI / 180.0);
+
+        if (isFinished) {
+            m_playbackTimer->stop();
+            m_kinematics.Fk();
+            updateUIWithUserFrame();
+
+            // 🚀 THE FIX: Force the UI to catch the final perfect zero!
+            QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
+
+            emit programFinished();
+            return;
+        }
+
+        m_playbackIndex += 16;
+    }
+
+    m_kinematics.Fk();
+    updateUIWithUserFrame();
 }

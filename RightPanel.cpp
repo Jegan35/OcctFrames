@@ -1260,14 +1260,17 @@ QWidget* RightPanel::buildStepControlWidget()
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(dx, dy, dz, rx, ry, rz);
         emit requestMainTransformPart(dx, dy, dz, rx, ry, rz);
 
-        // 🚀 2. Sync to Active User Frame Automatically!
+        // 🚀 THE FIX: We must tell the Backend that the User Frame changed!
+        emit requestMainSetUserFrame(dx, dy, dz);
+
+        // 2. Sync to Active User Frame Automatically!
         if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
             m_userFrames[m_activeFrameIndex].x = dx;
             m_userFrames[m_activeFrameIndex].y = dy;
             m_userFrames[m_activeFrameIndex].z = dz;
 
-            saveUserFramesConfig(); // Data-வை சேவ் செய்கிறோம்
-            refreshFrameUI();       // User Frame Tab-ஐ அப்டேட் செய்கிறோம்
+            saveUserFramesConfig();
+            refreshFrameUI();
         }
     });
 

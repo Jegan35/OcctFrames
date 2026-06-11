@@ -98,7 +98,7 @@ OcctWidget::OcctWidget(QWidget *parent) : QWidget(parent)
     setAttribute(Qt::WA_DontCreateNativeAncestors); // ✅ MUST BE HERE
 
     setMouseTracking(true);
-    myCSVPath = "/home/texsonics/Videos/extracted_paths.csv";
+    myCSVPath = "/home/texsonics/Videos/extracted_paths.txt";
 }
 OcctWidget::~OcctWidget() {}
 
@@ -501,8 +501,6 @@ void OcctWidget::processCurrentSelection(double resolution)
 {
     if (myContext.IsNull() || !myContext->HasSelectedShape()) return;
 
-    // ✅ THE FIX: Clear previous red lines so ONLY the new selection is red!
-    // (If you ever DO want to select multiple, just hold the SHIFT key on your keyboard)
     if (!(QApplication::keyboardModifiers() & Qt::ShiftModifier)) {
         clearSelections();
     }
@@ -510,9 +508,9 @@ void OcctWidget::processCurrentSelection(double resolution)
     myContext->InitSelected();
     int addedCount = 0;
 
-    QString xyzData;
-    QTextStream stringOut(&xyzData);
-    stringOut << "X,Y,Z\n";
+    QString txtData;
+    QTextStream stringOut(&txtData);
+    // 🚀 THE FIX: Removed the "X,Y,Z\n" header!
 
     while (myContext->MoreSelected()) {
         TopoDS_Shape shape = myContext->SelectedShape();
@@ -527,12 +525,9 @@ void OcctWidget::processCurrentSelection(double resolution)
         }
 
         myContext->Display(plottedPath, Standard_True);
-
-        // Save the click to History
         myPathHistory.push_back({shape, plottedPath, resolution});
         addedCount++;
 
-        // Run your math
         switch (shape.ShapeType()) {
         case TopAbs_FACE: processFace(TopoDS::Face(shape), stringOut, resolution); break;
         case TopAbs_WIRE: processWire(TopoDS::Wire(shape), stringOut, resolution); break;
@@ -545,67 +540,37 @@ void OcctWidget::processCurrentSelection(double resolution)
     myContext->ClearSelected(Standard_True);
     myRedoStack.clear();
 
-    emit coordinatesExtracted(xyzData);
+    emit coordinatesExtracted(txtData);
     regenerateCSV();
-    emit statusUpdate(QString("✅ Extracted %1 new path(s). Total Paths in CSV: %2").arg(addedCount).arg(myPathHistory.size()));
-
-    // ✅ ADD THIS LINE: Tells the UI to disable the "GET POINTS" button again
+    emit statusUpdate(QString("✅ Extracted %1 new path(s). Total Paths: %2").arg(addedCount).arg(myPathHistory.size()));
     emit selectionChanged(false);
 }
 
 void OcctWidget::regenerateCSV()
 {
     QFile file(myCSVPath);
-    // WriteOnly + Truncate means it completely overwrites the old file instantly
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        qWarning() << "Could not open file for writing:" << myCSVPath;
         return;
     }
 
     QTextStream out(&file);
-    out << "X,Y,Z\n";
+    // 🚀 THE FIX: Removed the "X,Y,Z\n" header!
 
-    // =================================================================
-    // ✅ THE FIX: QML SCALE FACTOR
-    // 0.001 converts OCCT (mm) to QML (meters).
-    // If QML still looks wrong, you can change this to 0.1, 10.0, etc.
-    // =================================================================
-    const double QML_SCALE_FACTOR = 0.001;
-
-    // Create a 3D scaling transformation matrix originating from (0,0,0)
-    gp_Trsf scaleTransform;
-    scaleTransform.SetScale(gp_Pnt(0, 0, 0), QML_SCALE_FACTOR);
-
-    // Play back the entire history stack to generate the perfect CSV state
     for (const auto& step : myPathHistory) {
-
-        // 1. Scale the shape in memory specifically for the CSV output
-        BRepBuilderAPI_Transform scaler(step.shape, scaleTransform);
-        TopoDS_Shape scaledShape = scaler.Shape();
-
-        // 2. Scale the resolution (distance) so the point density remains exactly the same
-        double scaledResolution = step.resolution * QML_SCALE_FACTOR;
-
-        // 3. Process the SCALED shape instead of the original one
-        switch (scaledShape.ShapeType()) {
-        case TopAbs_FACE:
-            processFace(TopoDS::Face(scaledShape), out, scaledResolution);
-            break;
-        case TopAbs_WIRE:
-            processWire(TopoDS::Wire(scaledShape), out, scaledResolution);
-            break;
-        case TopAbs_EDGE:
-            processEdge(TopoDS::Edge(scaledShape), out, scaledResolution);
-            break;
-        default:
-            break;
+        // 🚀 THE FIX: Removed complex OCCT scaling. We process the raw shape and convert to meters at the very end.
+        switch (step.shape.ShapeType()) {
+        case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution); break;
+        case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution); break;
+        case TopAbs_EDGE: processEdge(TopoDS::Edge(step.shape), out, step.resolution); break;
+        default: break;
         }
     }
 
     file.close();
 }
 
-// ====================================================================
+
+
 
 
 static gp_Dir g_faceNormal(0, 0, 1);
@@ -628,13 +593,11 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
     g_hasFaceNormal = true;
 
     TopExp_Explorer wireExplorer(face, TopAbs_WIRE);
-    int loopCount = 1;
     for (; wireExplorer.More(); wireExplorer.Next()) {
         TopoDS_Wire wire = TopoDS::Wire(wireExplorer.Current());
-        QString boundaryMarker = QString("--- NEW BOUNDARY LOOP %1 ---").arg(loopCount);
-        out << boundaryMarker << "\n";
+
+        // 🚀 THE FIX: Removed the Boundary Marker text!
         processWire(wire, out, resolution);
-        loopCount++;
     }
     g_hasFaceNormal = false;
 }
@@ -655,7 +618,6 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
 
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
 
-            // 🚀 THE FIX: Tool X-Axis (Forward) pointing into the surface
             gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
             gp_Dir y_axis(tangentVec);
 
@@ -670,17 +632,35 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
 
+            // =========================================================
+            // 🚀 THE FIX: ONLY INVERT THE TRANSLATION (X, Y, Z)
+            // Keep the rotation baked into the CSV so the Robot knows the exact angle!
+            // =========================================================
+            gp_Trsf inverseTranslation;
+            inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+
+            // Transform the tool position by subtracting ONLY the table's location
+            toolPos.Transform(inverseTranslation);
+            // =========================================================
             gp_Trsf trsf;
             trsf.SetDisplacement(defaultOXY, toolPos);
 
             Standard_Real rx, ry, rz;
             trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
 
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
+            // 🚀 THE FIX: Convert mm to meters (* 0.001) for the output file!
+            double x_meters = toolPos.Location().X() * 0.001;
+            double y_meters = toolPos.Location().Y() * 0.001;
+            double z_meters = toolPos.Location().Z() * 0.001;
+
+            out << x_meters << "," << y_meters << "," << z_meters << ","
                 << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
         }
     }
 }
+
+
+
 
 void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution)
 {
@@ -714,17 +694,37 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
 
+            // =========================================================
+            // 🚀 THE FIX: ONLY INVERT THE TRANSLATION (X, Y, Z)
+            // Keep the rotation baked into the CSV so the Robot knows the exact angle!
+            // =========================================================
+            gp_Trsf inverseTranslation;
+            inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+
+            // Transform the tool position by subtracting ONLY the table's location
+            toolPos.Transform(inverseTranslation);
+            // =========================================================
+
             gp_Trsf trsf;
             trsf.SetDisplacement(defaultOXY, toolPos);
 
             Standard_Real rx, ry, rz;
             trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
 
-            out << pt.X() << "," << pt.Y() << "," << pt.Z() << ","
+            // 🚀 THE FIX: Convert mm to meters (* 0.001) for the output file!
+            double x_meters = toolPos.Location().X() * 0.001;
+            double y_meters = toolPos.Location().Y() * 0.001;
+            double z_meters = toolPos.Location().Z() * 0.001;
+
+            out << x_meters << "," << y_meters << "," << z_meters << ","
                 << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
         }
     }
 }
+
+
+
+
 
 void OcctWidget::paintEvent(QPaintEvent *event)
 {
@@ -827,6 +827,14 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
         myView->StartRotation(x, y);
     }
 }
+
+
+
+
+
+
+
+
 
 
 void OcctWidget::mouseMoveEvent(QMouseEvent *event)
@@ -1445,32 +1453,50 @@ void OcctWidget::drawRoomGrid()
 // ==========================================================
 
 
+// ==========================================================
+// ✅ THE FIX: SET USER FRAME ORIGIN (PRESERVES ROTATION)
+// ==========================================================
 void OcctWidget::setUserFrameOrigin(double ui_x, double ui_y, double ui_z)
 {
     if (myContext.IsNull()) return;
 
-    // 🚀 NO SWAPPING.
     myCustomOrigin = gp_Pnt(ui_x, ui_y, ui_z);
 
+    // 1. 🚀 RECOVER THE ACTIVE ROTATION (Do not wipe it out!)
+    double radX = g_currentRx * (M_PI / 180.0);
+    double radY = g_currentRy * (M_PI / 180.0);
+    double radZ = g_currentRz * (M_PI / 180.0);
+
+    gp_Trsf rotX, rotY, rotZ, toUserFrame;
+    rotX.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), radX);
+    rotY.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,1,0)), radY);
+    rotZ.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,0,1)), radZ);
+
+    toUserFrame.SetTranslation(gp_Vec(ui_x, ui_y, ui_z));
+
+    // Combine into one master transformation matrix
+    gp_Trsf finalTrsf = toUserFrame * rotZ * rotY * rotX;
+
+    // 2. Apply it to the 3D Part
     if (!myLoadedPart.IsNull()) {
-        gp_Trsf transform;
-        transform.SetTranslation(gp_Vec(ui_x, ui_y, ui_z));
-        myContext->SetLocation(myLoadedPart, TopLoc_Location(transform));
+        myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
     }
 
+    // 3. Apply it to the Target Marker Triad (Arrows)
     if (myUserFrameMarker.IsNull()) {
         myUserFrameMarker = createThickTriad(1.3);
         myContext->SetDisplayMode(myUserFrameMarker, 1, Standard_False);
         myContext->Display(myUserFrameMarker, Standard_False);
     }
 
-    gp_Trsf markerTrsf;
-    markerTrsf.SetTranslation(gp_Vec(ui_x, ui_y, ui_z));
-    myContext->SetLocation(myUserFrameMarker, TopLoc_Location(markerTrsf));
+    myContext->SetLocation(myUserFrameMarker, TopLoc_Location(finalTrsf));
 
     myContext->UpdateCurrentViewer();
     emit statusUpdate(QString("📍 UserFrame Origin SET at X:%1 Y:%2 Z:%3").arg(ui_x).arg(ui_y).arg(ui_z));
 }
+
+
+
 
 // =========================================================================
 // TOOL FRAME: CLEAR EXISTING TOOL
@@ -1631,7 +1657,7 @@ void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx,
 {
     if (myLoadedPart.IsNull()) return;
 
-    // 🚀 தற்போதைய User Frame & கோணத்தை ஞாபகம் வைத்துக்கொள்கிறோம்
+    // Save current values
     g_currentRx = rx; g_currentRy = ry; g_currentRz = rz;
     myCustomOrigin = gp_Pnt(dx, dy, dz);
 
@@ -1639,43 +1665,25 @@ void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx,
     double radY = ry * (M_PI / 180.0);
     double radZ = rz * (M_PI / 180.0);
 
-    gp_Trsf toOrigin, rotX, rotY, rotZ, toUserFrame;
+    gp_Trsf rotX, rotY, rotZ, toUserFrame;
 
-    // 1. பார்ட்டின் மையத்தை 0,0,0-க்கு நகர்த்துகிறோம்
-    if (g_hasPartCenter) {
-        toOrigin.SetTranslation(gp_Vec(-g_partCenter.X(), -g_partCenter.Y(), -g_partCenter.Z()));
-    }
-
-    // 2. 0,0,0-ல் வைத்து தன் அச்சிலேயே சுழற்றுகிறோம்
+    // 🚀 THE FIX: The part is ALREADY centered at 0,0,0 by loadStepFile!
+    // We just rotate it in place, then move it to the User Frame XYZ.
     rotX.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), radX);
     rotY.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,1,0)), radY);
     rotZ.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,0,1)), radZ);
 
-    // 3. User Frame இடத்திற்கு நகர்த்துகிறோம்
     toUserFrame.SetTranslation(gp_Vec(dx, dy, dz));
 
-    // 🚀 THE FIX: Origin Marker-க்கான Transformation (Center-ல் இருந்து)
-    // இது மார்க்கரை நகர்த்தவும் செய்யும், கூடவே சுழற்றவும் செய்யும்!
-    gp_Trsf markerTrsf = toUserFrame * rotZ * rotY * rotX;
+    // Combine into final transformation
+    gp_Trsf finalTrsf = toUserFrame * rotZ * rotY * rotX;
 
-    // பார்ட்டுக்கான Transformation (Origin Offset சேர்த்து)
-    gp_Trsf finalTrsf = markerTrsf * toOrigin;
-
-    // 1️⃣ பார்ட்டை நகர்த்துகிறோம்
+    // Apply to the loaded part
     myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
 
-    // 2️⃣ THE FIX: User Frame Marker-ஐ (அம்புக்குறிகள்) பார்ட்டோடு சேர்ந்தே ஒட்டினாற்போல் வைக்கிறோம்!
+    // Apply to the User Frame Marker (Arrows)
     if (!myUserFrameMarker.IsNull()) {
-        myContext->SetLocation(myUserFrameMarker, TopLoc_Location(markerTrsf));
-    }
-
-    // 3️⃣ ஒருவேளை பழைய Origin Marker இருந்தால் அதையும் அப்டேட் செய்கிறோம்
-    if (!myOriginMarker.IsNull()) {
-        gp_Ax3 base(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
-        base.Transform(markerTrsf);
-        Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(base.Ax2());
-        myOriginMarker->SetComponent(placement);
-        myContext->Redisplay(myOriginMarker, Standard_True);
+        myContext->SetLocation(myUserFrameMarker, TopLoc_Location(finalTrsf));
     }
 
     myContext->UpdateCurrentViewer();

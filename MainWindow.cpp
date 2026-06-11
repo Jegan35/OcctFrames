@@ -56,7 +56,17 @@ void MainWindow::setupConnections()
     });
 
     connect(this->rightPanel, &RightPanel::requestMainSetUserFrame, this, [this](double x, double y, double z){
-        if(this->leftPanel) this->leftPanel->getMainOcctWidget()->setUserFrameOrigin(x, y, z);
+
+        // 1. Send Visuals to 3D Viewer (Draw the marker)
+        if(this->leftPanel) {
+            this->leftPanel->getMainOcctWidget()->setUserFrameOrigin(x, y, z);
+        }
+
+        // 2. 🚀 THE CRITICAL FIX: Send Math to KDL Backend!
+        if(this->m_backend) {
+            this->m_backend->setUserFrame(x, y, z);
+        }
+
     });
 
     // LeftPanel -> RightPanel (Isolation & Tab Switching)

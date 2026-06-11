@@ -18,6 +18,7 @@ class ClientBackend : public QObject
 
 public:
     explicit ClientBackend(QObject *parent = nullptr);
+    void setUserFrame(double x, double y, double z);
 
 signals:
     void updateRobot3DView(double j1, double j2, double j3, double j4, double j5, double j6);
