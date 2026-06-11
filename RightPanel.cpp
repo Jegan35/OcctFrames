@@ -174,16 +174,23 @@ QWidget* RightPanel::buildDxfFileWidget()
     ctrlLayout->addLayout(row1);
 
     // --- ROW 2: Action Buttons ---
+    // --- ROW 2: Action Buttons ---
     QHBoxLayout *row2 = new QHBoxLayout();
+
     m_btnGetPoints = new QPushButton("📍 GET POINTS");
     m_btnGetPoints->setEnabled(false);
     m_btnGetPoints->setStyleSheet("QPushButton { background-color:#2a3040; color:#64748b; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; }");
+
+    // 🚀 NEW: The One-Click Full Shape Button
+    QPushButton *btnFullShape = new QPushButton("🌟 FULL SHAPE");
+    btnFullShape->setStyleSheet("QPushButton { background-color:#8B5CF6; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#7C3AED; }");
 
     QPushButton *btnRunDxf = new QPushButton("▶ RUN");
     btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");
     btnRunDxf->setProperty("isRunning", false);
 
     row2->addWidget(m_btnGetPoints, 1);
+    row2->addWidget(btnFullShape, 1); // <--- Added the new button here!
     row2->addWidget(btnRunDxf, 1);
     ctrlLayout->addLayout(row2);
 
@@ -270,6 +277,16 @@ QWidget* RightPanel::buildDxfFileWidget()
         if (dist <= 0.001) dist = 2.0;
         m_dxfPreviewWidget->processCurrentSelection(dist);
         lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText());
+    });
+    // 🚀 NEW: Trigger the Full Shape Scan when clicked!
+    connect(btnFullShape, &QPushButton::clicked, this, [this, txtDistance, lblFileOrigin](){
+        double dist = txtDistance->text().toDouble();
+        if (dist <= 0.001) dist = 2.0;
+
+        if (m_dxfPreviewWidget) {
+            m_dxfPreviewWidget->processAllEdges(dist); // Call our new radar function
+            lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText());
+        }
     });
     connect(m_dxfPreviewWidget, &OcctWidget::coordinatesExtracted, this, [this](const QString &data){
         m_txtCoordinates->setPlainText(data);
@@ -1203,7 +1220,7 @@ QWidget* RightPanel::buildStepControlWidget()
     // 🔗 SYNCHRONIZED BUTTON CONNECTIONS
     // ==========================================
     connect(btnLoadStep, &QPushButton::clicked, this, [=](){
-        QString filePath = QFileDialog::getOpenFileName(this, "Select CAD File", "", "CAD Files (*.step *.stp *.dxf *.STEP)");
+        QString filePath = QFileDialog::getOpenFileName(this, "Select CAD File", "", "CAD Files (*.step *.stp *.dxf *.STEP *.DXF *.STP)");
         if (!filePath.isEmpty()) {
 
             m_stepPreviewWidget->loadStepFile(filePath.toStdString());

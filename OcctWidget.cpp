@@ -81,7 +81,9 @@
 #include <Geom_Surface.hxx>
 #include <gp_Quaternion.hxx>
 #include <gp_EulerSequence.hxx>
-
+#include <BRepBuilderAPI_MakeWire.hxx>
+#include <TopTools_ListOfShape.hxx>
+#include <TopoDS_Wire.hxx>
 
 static gp_Pnt g_partCenter(0, 0, 0);
 static bool g_hasPartCenter = false;
@@ -274,21 +276,36 @@ void OcctWidget::loadStepFile(const std::string& filePath)
             return false;
         };
 
+        // =======================================================
+        // 🚀 DXF READER (Strict Pair-Reading & Ghost Line Fix)
+        // =======================================================
+        bool isCodeLine = true; // Tracks if we are reading a Code or a Value
+
         while (!in.atEnd()) {
             QString line = in.readLine().trimmed();
-            bool isCode;
-            int code = line.toInt(&isCode);
 
-            if (isCode && line.length() < 5) {
-                currentCode = code;
+            if (isCodeLine) {
+                currentCode = line.toInt();
+                isCodeLine = false; // Next line will be the value
             } else {
-                if (line == "LINE") {
-                    if (inLine) {
-                        if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
+                // We are reading a VALUE line
+                if (currentCode == 0) {
+                    // Code 0 ALWAYS means a new entity is starting
+                    if (line == "LINE") {
+                        if (inLine) {
+                            if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
+                        }
+                        inLine = true;
+                        x1 = y1 = z1 = x2 = y2 = z2 = 0.0;
+                    } else {
+                        // Some other entity started (ARC, CIRCLE, EOF, etc.)
+                        if (inLine) {
+                            if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
+                            inLine = false; // Turn off to prevent bleed-over!
+                        }
                     }
-                    inLine = true;
-                    x1 = y1 = z1 = x2 = y2 = z2 = 0.0;
                 } else if (inLine) {
+                    // We are actively inside a LINE, read its coordinates
                     double val = line.toDouble();
                     if (currentCode == 10) x1 = val;
                     else if (currentCode == 20) y1 = val;
@@ -297,14 +314,15 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                     else if (currentCode == 21) y2 = val;
                     else if (currentCode == 31) z2 = val;
                 }
+
+                isCodeLine = true; // Next line will be a code
             }
         }
 
+        // Catch the very last line if the file ends abruptly
         if (inLine) {
             if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
         }
-        file.close();
-
         if (edgesAdded > 0) {
             try {
                 // 🚀 THE FIX: DXF மையத்தைக் கண்டுபிடித்து, அதையே நிரந்தர Origin ஆக்குகிறோம்
@@ -317,12 +335,20 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                 gp_Trsf centerTrsf;
                 centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
 
-                // பார்ட்டை மையத்திற்கு நகர்த்துகிறோம்
+
                 TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(comp, centerTrsf).Shape();
                 myLoadedPart = new AIS_Shape(centeredShape);
 
-                myContext->SetColor(myLoadedPart, Quantity_NOC_CYAN1, Standard_False);
-                myContext->SetWidth(myLoadedPart, 3.0, Standard_False);
+                // =========================================================
+                // 🚀 THE FIX: EXTREME HIGH CONTRAST (CHARCOAL BLACK)
+                // This is a very dark slate/black. It will perfectly contrast
+                // against your light background AND the bright red path.
+                // =========================================================
+                Quantity_Color dxfDarkColor(0.10, 0.10, 0.12, Quantity_TOC_RGB);
+
+                myContext->SetColor(myLoadedPart, dxfDarkColor, Standard_False);
+                myContext->SetWidth(myLoadedPart, 1.5, Standard_False);
+
                 myContext->Display(myLoadedPart, Standard_True);
 
                 if (myRole == OcctWidget::SideRole) { myView->FitAll(); }
@@ -1687,4 +1713,73 @@ void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx,
     }
 
     myContext->UpdateCurrentViewer();
+}
+
+// ====================================================================
+// 🚀 NEW: ONE-CLICK FULL SHAPE EXTRACTION (SORTED & CONTINUOUS)
+// ====================================================================
+void OcctWidget::processAllEdges(double resolution)
+{
+    if (myContext.IsNull() || myLoadedPart.IsNull()) {
+        emit statusUpdate("⚠️ Load a part first!");
+        return;
+    }
+
+    clearSelections();
+    int addedCount = 0;
+
+    QString txtData;
+    QTextStream stringOut(&txtData);
+
+    Handle(AIS_Shape) aisShape = Handle(AIS_Shape)::DownCast(myLoadedPart);
+    if (aisShape.IsNull()) {
+        emit statusUpdate("⚠️ Error: The loaded part is not a valid CAD shape.");
+        return;
+    }
+
+    TopoDS_Shape rawShape = aisShape->Shape();
+    gp_Trsf currentTrsf = myContext->Location(aisShape).Transformation();
+    TopoDS_Shape transformedShape = BRepBuilderAPI_Transform(rawShape, currentTrsf).Shape();
+
+    // ========================================================================
+    // 🚀 THE FIX: STITCH LOOSE EDGES INTO A CONTINUOUS, SORTED LOOP!
+    // ========================================================================
+    TopTools_ListOfShape edgeList;
+    TopExp_Explorer edgeExplorer(transformedShape, TopAbs_EDGE);
+
+    // 1. Gather all the random loose lines
+    for (; edgeExplorer.More(); edgeExplorer.Next()) {
+        edgeList.Append(TopoDS::Edge(edgeExplorer.Current()));
+    }
+
+    // 2. Put them in the Wire Maker. It automatically sorts them end-to-end!
+    BRepBuilderAPI_MakeWire wireMaker;
+    wireMaker.Add(edgeList);
+
+    if (wireMaker.IsDone()) {
+        // 3. Extract the perfect continuous loop
+        TopoDS_Wire sortedWire = wireMaker.Wire();
+
+        // Turn the continuous loop RED
+        Handle(AIS_Shape) plottedPath = new AIS_Shape(sortedWire);
+        myContext->SetColor(plottedPath, Quantity_NOC_RED, Standard_False);
+        myContext->SetWidth(plottedPath, 3.0, Standard_False);
+        myContext->Display(plottedPath, Standard_True);
+
+        myPathHistory.push_back({sortedWire, plottedPath, resolution});
+        addedCount++;
+
+        // 4. Send the SORTED loop to the point generator!
+        processWire(sortedWire, stringOut, resolution);
+    } else {
+        emit statusUpdate("⚠️ Could not stitch lines. Make sure the DXF shape is a closed loop!");
+        return;
+    }
+    // ========================================================================
+
+    myRedoStack.clear();
+    emit coordinatesExtracted(txtData);
+    regenerateCSV();
+
+    emit statusUpdate("✅ FULL SHAPE EXTRACTED as a smooth, continuous path!");
 }

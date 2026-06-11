@@ -1218,4 +1218,8 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/TopTools_FormatVersion.hxx \
  /usr/local/include/opencascade/TopTools_IndexedMapOfShape.hxx \
  /usr/local/include/opencascade/gp_Quaternion.hxx \
- /usr/local/include/opencascade/gp_EulerSequence.hxx
+ /usr/local/include/opencascade/gp_EulerSequence.hxx \
+ /usr/local/include/opencascade/BRepBuilderAPI_MakeWire.hxx \
+ /usr/local/include/opencascade/BRepLib_MakeWire.hxx \
+ /usr/local/include/opencascade/BRepLib_WireError.hxx \
+ /usr/local/include/opencascade/BRepBuilderAPI_WireError.hxx

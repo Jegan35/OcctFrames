@@ -47,6 +47,7 @@ public:
     explicit OcctWidget(QWidget *parent = nullptr);
     ~OcctWidget() override;
     bool hasLoadedPart() const { return !myLoadedPart.IsNull(); }
+    void processAllEdges(double resolution);
     void transformLoadedPart(double dx, double dy, double dz, double rx, double ry, double rz);
     void clearLoadedPart();
     void processCurrentSelection(double resolution);
