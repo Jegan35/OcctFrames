@@ -1,6 +1,7 @@
 #ifndef RIGHTPANEL_H
 #define RIGHTPANEL_H
 
+
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QTabWidget>
