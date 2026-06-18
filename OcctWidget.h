@@ -23,6 +23,7 @@
 #include <AIS_Trihedron.hxx>
 #include <Geom_Axis2Placement.hxx>
 #include <AIS_Shape.hxx>
+#include <AIS_TextLabel.hxx>
 
 #include <vector>
 
@@ -81,6 +82,8 @@ public:
     void clearToolShape();
     void drawTargetMarker(double x, double y, double z);
     void clearTargetMarker();
+    void calculateCustomStartPoint(double percentage);
+    void calculateCustomEndPoint(double percentage);
 
 signals:
     void statusUpdate(const QString& msg);
@@ -88,6 +91,9 @@ signals:
     void coordinatesExtracted(const QString& xyzData);
     void selectionChanged(bool isSelected);
     void robotLoadComplete();
+    void customStartPointCalculated(const QString& xyz);
+    void customEndPointCalculated(const QString& xyz);
+
 protected:
     QPaintEngine* paintEngine() const override { return nullptr; }
 
@@ -98,8 +104,30 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
-
 private:
+
+    TopoDS_Edge m_customStartEdge;
+    TopoDS_Edge m_customEndEdge;
+
+    Handle(AIS_Shape) m_customStartMarker;
+    Handle(AIS_Shape) m_customEndMarker;
+
+    // =========================================================
+    // 🚀 NEW: Custom Trim Tracking Variables (Labels & Percentages)
+    // =========================================================
+    Handle(AIS_TextLabel) m_customStartLabel;
+    Handle(AIS_TextLabel) m_customEndLabel;
+    double m_trimStartPct = 0.0;
+    double m_trimEndPct = 100.0;
+
+    // 🚀 NEW: Start Marker tracking variables
+    Handle(AIS_Shape) myStartPointMarker;
+    Handle(AIS_TextLabel) myStartLabel;
+    bool m_isFirstPointFound = false;
+
+    // 🚀 NEW: Function to draw the marker
+    void drawStartMarker(const gp_Pnt& pt);
+
     double m_toolOffsetX = 0.0;
     double m_toolOffsetY = 0.0;
     double m_toolOffsetZ = 0.0;
@@ -146,7 +174,5 @@ private:
     void processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution);
     void processFace(const TopoDS_Face& face, QTextStream& out, double resolution);
 };
-
-
 
 #endif // OCCTWIDGET_H

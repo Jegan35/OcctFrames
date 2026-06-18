@@ -753,6 +753,7 @@
  mdp:/usr/local/include/opencascade/AIS_Shape.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfDetection.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfPick.hxx
+ mdp:/usr/local/include/opencascade/AIS_TextLabel.hxx
  mdp:/usr/local/include/opencascade/AIS_Trihedron.hxx
  mdp:/usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx
  mdp:/usr/local/include/opencascade/AIS_TypeOfIso.hxx
@@ -2298,6 +2299,7 @@
  mdp:/usr/local/include/opencascade/AIS_Shape.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfDetection.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfPick.hxx
+ mdp:/usr/local/include/opencascade/AIS_TextLabel.hxx
  mdp:/usr/local/include/opencascade/AIS_Trihedron.hxx
  mdp:/usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx
  mdp:/usr/local/include/opencascade/AIS_TypeOfIso.hxx
@@ -3616,6 +3618,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlatin1stringview.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qline.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlist.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlogging.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmalloc.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmap.h
@@ -3636,6 +3639,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qprocessordetection.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrect.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrefcount.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopedpointer.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopeguard.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qset.h
@@ -3719,12 +3723,14 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiexports.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiglobal.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtransform.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QMainWindow
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSplitter
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit
@@ -3732,6 +3738,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h
@@ -3743,6 +3750,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qmainwindow.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsplitter.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h
@@ -4314,6 +4322,7 @@
  mdp:/usr/local/include/opencascade/AIS_Shape.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfDetection.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfPick.hxx
+ mdp:/usr/local/include/opencascade/AIS_TextLabel.hxx
  mdp:/usr/local/include/opencascade/AIS_Trihedron.hxx
  mdp:/usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx
  mdp:/usr/local/include/opencascade/AIS_TypeOfIso.hxx
@@ -4990,6 +4999,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlatin1stringview.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qline.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlist.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlogging.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmalloc.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmap.h
@@ -5010,6 +5020,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qprocessordetection.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrect.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrefcount.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopedpointer.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopeguard.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qset.h
@@ -5093,17 +5104,20 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiexports.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiglobal.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtransform.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h
@@ -5114,6 +5128,7 @@
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h
+ mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h
  mdp:/home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgets-config.h
@@ -5684,6 +5699,7 @@
  mdp:/usr/local/include/opencascade/AIS_Shape.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfDetection.hxx
  mdp:/usr/local/include/opencascade/AIS_StatusOfPick.hxx
+ mdp:/usr/local/include/opencascade/AIS_TextLabel.hxx
  mdp:/usr/local/include/opencascade/AIS_Trihedron.hxx
  mdp:/usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx
  mdp:/usr/local/include/opencascade/AIS_TypeOfIso.hxx

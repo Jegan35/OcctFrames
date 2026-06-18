@@ -1283,6 +1283,7 @@ CMakeFiles/appOCCT.dir/LeftPanel.cpp.o: \
  /usr/local/include/opencascade/Prs3d_PointAspect.hxx \
  /usr/local/include/opencascade/Geom_Axis2Placement.hxx \
  /usr/local/include/opencascade/Geom_AxisPlacement.hxx \
+ /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayout.h \

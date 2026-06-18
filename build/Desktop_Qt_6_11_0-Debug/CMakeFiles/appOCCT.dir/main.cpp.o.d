@@ -1298,6 +1298,7 @@ CMakeFiles/appOCCT.dir/main.cpp.o: \
  /usr/local/include/opencascade/Prs3d_PointAspect.hxx \
  /usr/local/include/opencascade/Geom_Axis2Placement.hxx \
  /usr/local/include/opencascade/Geom_AxisPlacement.hxx \
+ /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /home/texsonics/Documents/toolocct/RightPanel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
@@ -1315,4 +1316,9 @@ CMakeFiles/appOCCT.dir/main.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h

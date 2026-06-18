@@ -10,9 +10,33 @@
 #include <QCheckBox>
 #include <QList>
 #include <QLineEdit>
-
+#include <QSpinBox>
+#include <cmath>
+#include <kdl/frames.hpp> // Required for One Brain Math
 #include "ClientBackend.h"
 #include "OcctWidget.h"
+
+// ==========================================
+// 🧠 SINGLE SOURCE OF TRUTH (ONE BRAIN MATH)
+// ==========================================
+class RobotMath {
+public:
+    // Forces both OpenCASCADE and the Robot to calculate Rx, Ry, Rz using identical KDL logic.
+    static void getUnifiedEulerDegrees(const KDL::Rotation& rot, double &rx, double &ry, double &rz) {
+        // 1. Calculate Roll, Pitch, Yaw natively in KDL
+        rot.GetRPY(rx, ry, rz);
+
+        // 2. Convert Radians to Degrees for UI perfection
+        rx = rx * (180.0 / M_PI);
+        ry = ry * (180.0 / M_PI);
+        rz = rz * (180.0 / M_PI);
+
+        // 3. Clean up floating point noise (forces tiny numbers to perfectly 0.0)
+        if (std::abs(rx) < 0.001) rx = 0.0;
+        if (std::abs(ry) < 0.001) ry = 0.0;
+        if (std::abs(rz) < 0.001) rz = 0.0;
+    }
+};
 
 // ==========================================
 // TCP CALIBRATION MATH STRUCTURES
@@ -46,7 +70,7 @@ public:
 public slots:
     void setGetPointsEnabled(bool enabled);
     void updateOriginLabel(double x, double y, double z);
-     void setActiveTab(int index);
+    void setActiveTab(int index);
 
 signals:
     // Signals to route commands to the Main Left Panel (Robot View)
@@ -116,14 +140,14 @@ private:
     bool m_frameDeleteMode = false;
     QVBoxLayout* m_frameListLayout = nullptr;
     QList<QCheckBox*> m_frameCheckboxes;
+
     // ========================================================
     // TOOL FRAME STRUCTURE & VARIABLES
     // ========================================================
     struct ToolFrameData {
-        QString name = "tool1"; // Name corresponds to the STL filename
-        double x = 0.0;
-        double y = 0.0;
-        double z = 0.0;
+        QString name;
+        double x, y, z;      // Static Tool Frame (Physical tool dimensions)
+        double ox, oy, oz;   // NEW: Dynamic Live Offset (Fine-tuning)
     };
 
     QList<ToolFrameData> m_toolFrames;

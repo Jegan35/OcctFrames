@@ -615,8 +615,253 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/TopoDS_Face.lxx \
  /usr/local/include/opencascade/BRepTools_Modifier.lxx \
  /usr/local/include/opencascade/Font_FontAspect.hxx \
- /home/texsonics/Documents/toolocct/OcctWidget.h \
+ /usr/include/kdl/frames.hpp /usr/include/kdl/utilities/kdl-config.h \
+ /usr/include/kdl/utilities/utility.h \
+ /usr/include/kdl/utilities/kdl-config.h /usr/include/kdl/frames.inl \
+ /home/texsonics/Documents/toolocct/RightPanel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayout.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayoutitem.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgridlayout.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlabel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qpicture.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QList \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
+ /home/texsonics/Documents/toolocct/ClientBackend.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QObject \
+ /home/texsonics/Documents/toolocct/scurve.h /usr/include/c++/11/math.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QString \
+ /home/texsonics/Documents/toolocct/kinematic.h \
+ /usr/include/kdl/chainiksolverpos_lma.hpp \
+ /usr/include/kdl/chainiksolver.hpp /usr/include/kdl/chain.hpp \
+ /usr/include/kdl/segment.hpp /usr/include/kdl/frames.hpp \
+ /usr/include/kdl/rigidbodyinertia.hpp \
+ /usr/include/kdl/rotationalinertia.hpp /usr/include/kdl/joint.hpp \
+ /usr/include/kdl/framevel.hpp /usr/include/kdl/utilities/rall1d.h \
+ /usr/include/kdl/utilities/utility.h /usr/include/kdl/utilities/traits.h \
+ /usr/include/kdl/framevel.inl /usr/include/kdl/frameacc.hpp \
+ /usr/include/kdl/utilities/rall2d.h /usr/include/kdl/frameacc.inl \
+ /usr/include/kdl/jntarray.hpp /usr/include/kdl/jacobian.hpp \
+ /usr/include/eigen3/Eigen/Core \
+ /usr/include/eigen3/Eigen/src/Core/util/DisableStupidWarnings.h \
+ /usr/include/eigen3/Eigen/src/Core/util/Macros.h \
+ /usr/include/eigen3/Eigen/src/Core/util/ConfigureVectorization.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/mmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/emmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xmmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/mm_malloc.h \
+ /usr/include/c++/11/complex \
+ /usr/include/eigen3/Eigen/src/Core/util/MKL_support.h \
+ /usr/include/eigen3/Eigen/src/Core/util/Constants.h \
+ /usr/include/eigen3/Eigen/src/Core/util/Meta.h \
+ /usr/include/eigen3/Eigen/src/Core/util/ForwardDeclarations.h \
+ /usr/include/eigen3/Eigen/src/Core/util/StaticAssert.h \
+ /usr/include/eigen3/Eigen/src/Core/util/XprHelper.h \
+ /usr/include/eigen3/Eigen/src/Core/util/Memory.h \
+ /usr/include/eigen3/Eigen/src/Core/util/IntegralConstant.h \
+ /usr/include/eigen3/Eigen/src/Core/util/SymbolicIndex.h \
+ /usr/include/eigen3/Eigen/src/Core/NumTraits.h \
+ /usr/include/eigen3/Eigen/src/Core/MathFunctions.h \
+ /usr/include/eigen3/Eigen/src/Core/GenericPacketMath.h \
+ /usr/include/eigen3/Eigen/src/Core/MathFunctionsImpl.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/ConjHelper.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/Half.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/BFloat16.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/TypeCasting.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/GenericPacketMathFunctionsFwd.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/SSE/PacketMath.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/SSE/TypeCasting.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/SSE/MathFunctions.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/SSE/Complex.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/Settings.h \
+ /usr/include/eigen3/Eigen/src/Core/arch/Default/GenericPacketMathFunctions.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/TernaryFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/BinaryFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/UnaryFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/NullaryFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/StlFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/functors/AssignmentFunctors.h \
+ /usr/include/eigen3/Eigen/src/Core/util/IndexedViewHelper.h \
+ /usr/include/eigen3/Eigen/src/Core/util/ReshapedHelper.h \
+ /usr/include/eigen3/Eigen/src/Core/ArithmeticSequence.h \
+ /usr/include/eigen3/Eigen/src/Core/IO.h \
+ /usr/include/eigen3/Eigen/src/Core/DenseCoeffsBase.h \
+ /usr/include/eigen3/Eigen/src/Core/DenseBase.h \
+ /usr/include/eigen3/Eigen/src/plugins/CommonCwiseUnaryOps.h \
+ /usr/include/eigen3/Eigen/src/plugins/BlockMethods.h \
+ /usr/include/eigen3/Eigen/src/plugins/IndexedViewMethods.h \
+ /usr/include/eigen3/Eigen/src/plugins/IndexedViewMethods.h \
+ /usr/include/eigen3/Eigen/src/plugins/ReshapedMethods.h \
+ /usr/include/eigen3/Eigen/src/plugins/ReshapedMethods.h \
+ /usr/include/eigen3/Eigen/src/Core/MatrixBase.h \
+ /usr/include/eigen3/Eigen/src/plugins/CommonCwiseBinaryOps.h \
+ /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseUnaryOps.h \
+ /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseBinaryOps.h \
+ /usr/include/eigen3/Eigen/src/Core/EigenBase.h \
+ /usr/include/eigen3/Eigen/src/Core/Product.h \
+ /usr/include/eigen3/Eigen/src/Core/CoreEvaluators.h \
+ /usr/include/eigen3/Eigen/src/Core/AssignEvaluator.h \
+ /usr/include/eigen3/Eigen/src/Core/Assign.h \
+ /usr/include/eigen3/Eigen/src/Core/ArrayBase.h \
+ /usr/include/eigen3/Eigen/src/plugins/ArrayCwiseUnaryOps.h \
+ /usr/include/eigen3/Eigen/src/plugins/ArrayCwiseBinaryOps.h \
+ /usr/include/eigen3/Eigen/src/Core/util/BlasUtil.h \
+ /usr/include/eigen3/Eigen/src/Core/DenseStorage.h \
+ /usr/include/eigen3/Eigen/src/Core/NestByValue.h \
+ /usr/include/eigen3/Eigen/src/Core/ReturnByValue.h \
+ /usr/include/eigen3/Eigen/src/Core/NoAlias.h \
+ /usr/include/eigen3/Eigen/src/Core/PlainObjectBase.h \
+ /usr/include/eigen3/Eigen/src/Core/Matrix.h \
+ /usr/include/eigen3/Eigen/src/Core/Array.h \
+ /usr/include/eigen3/Eigen/src/Core/CwiseTernaryOp.h \
+ /usr/include/eigen3/Eigen/src/Core/CwiseBinaryOp.h \
+ /usr/include/eigen3/Eigen/src/Core/CwiseUnaryOp.h \
+ /usr/include/eigen3/Eigen/src/Core/CwiseNullaryOp.h \
+ /usr/include/eigen3/Eigen/src/Core/CwiseUnaryView.h \
+ /usr/include/eigen3/Eigen/src/Core/SelfCwiseBinaryOp.h \
+ /usr/include/eigen3/Eigen/src/Core/Dot.h \
+ /usr/include/eigen3/Eigen/src/Core/StableNorm.h \
+ /usr/include/eigen3/Eigen/src/Core/Stride.h \
+ /usr/include/eigen3/Eigen/src/Core/MapBase.h \
+ /usr/include/eigen3/Eigen/src/Core/Map.h \
+ /usr/include/eigen3/Eigen/src/Core/Ref.h \
+ /usr/include/eigen3/Eigen/src/Core/Block.h \
+ /usr/include/eigen3/Eigen/src/Core/VectorBlock.h \
+ /usr/include/eigen3/Eigen/src/Core/IndexedView.h \
+ /usr/include/eigen3/Eigen/src/Core/Reshaped.h \
+ /usr/include/eigen3/Eigen/src/Core/Transpose.h \
+ /usr/include/eigen3/Eigen/src/Core/DiagonalMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/Diagonal.h \
+ /usr/include/eigen3/Eigen/src/Core/DiagonalProduct.h \
+ /usr/include/eigen3/Eigen/src/Core/Redux.h \
+ /usr/include/eigen3/Eigen/src/Core/Visitor.h \
+ /usr/include/eigen3/Eigen/src/Core/Fuzzy.h \
+ /usr/include/eigen3/Eigen/src/Core/Swap.h \
+ /usr/include/eigen3/Eigen/src/Core/CommaInitializer.h \
+ /usr/include/eigen3/Eigen/src/Core/GeneralProduct.h \
+ /usr/include/eigen3/Eigen/src/Core/Solve.h \
+ /usr/include/eigen3/Eigen/src/Core/Inverse.h \
+ /usr/include/eigen3/Eigen/src/Core/SolverBase.h \
+ /usr/include/eigen3/Eigen/src/Core/PermutationMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/Transpositions.h \
+ /usr/include/eigen3/Eigen/src/Core/TriangularMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/SelfAdjointView.h \
+ /usr/include/eigen3/Eigen/src/Core/products/GeneralBlockPanelKernel.h \
+ /usr/include/eigen3/Eigen/src/Core/products/Parallelizer.h \
+ /usr/include/eigen3/Eigen/src/Core/ProductEvaluators.h \
+ /usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixVector.h \
+ /usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/SolveTriangular.h \
+ /usr/include/eigen3/Eigen/src/Core/products/GeneralMatrixMatrixTriangular.h \
+ /usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixVector.h \
+ /usr/include/eigen3/Eigen/src/Core/products/SelfadjointMatrixMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/products/SelfadjointProduct.h \
+ /usr/include/eigen3/Eigen/src/Core/products/SelfadjointRank2Update.h \
+ /usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixVector.h \
+ /usr/include/eigen3/Eigen/src/Core/products/TriangularMatrixMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/products/TriangularSolverMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/products/TriangularSolverVector.h \
+ /usr/include/eigen3/Eigen/src/Core/BandMatrix.h \
+ /usr/include/eigen3/Eigen/src/Core/CoreIterators.h \
+ /usr/include/eigen3/Eigen/src/Core/ConditionEstimator.h \
+ /usr/include/eigen3/Eigen/src/Core/BooleanRedux.h \
+ /usr/include/eigen3/Eigen/src/Core/Select.h \
+ /usr/include/eigen3/Eigen/src/Core/VectorwiseOp.h \
+ /usr/include/eigen3/Eigen/src/Core/PartialReduxEvaluator.h \
+ /usr/include/eigen3/Eigen/src/Core/Random.h \
+ /usr/include/eigen3/Eigen/src/Core/Replicate.h \
+ /usr/include/eigen3/Eigen/src/Core/Reverse.h \
+ /usr/include/eigen3/Eigen/src/Core/ArrayWrapper.h \
+ /usr/include/eigen3/Eigen/src/Core/StlIterators.h \
+ /usr/include/eigen3/Eigen/src/Core/GlobalFunctions.h \
+ /usr/include/eigen3/Eigen/src/Core/util/ReenableStupidWarnings.h \
+ /usr/include/kdl/jntarrayvel.hpp /usr/include/kdl/jntarrayacc.hpp \
+ /usr/include/kdl/solveri.hpp /usr/include/eigen3/Eigen/Dense \
+ /usr/include/eigen3/Eigen/Core /usr/include/eigen3/Eigen/LU \
+ /usr/include/eigen3/Eigen/src/misc/Kernel.h \
+ /usr/include/eigen3/Eigen/src/misc/Image.h \
+ /usr/include/eigen3/Eigen/src/LU/FullPivLU.h \
+ /usr/include/eigen3/Eigen/src/LU/PartialPivLU.h \
+ /usr/include/eigen3/Eigen/src/LU/Determinant.h \
+ /usr/include/eigen3/Eigen/src/LU/InverseImpl.h \
+ /usr/include/eigen3/Eigen/src/LU/arch/InverseSize4.h \
+ /usr/include/eigen3/Eigen/Cholesky /usr/include/eigen3/Eigen/Jacobi \
+ /usr/include/eigen3/Eigen/src/Jacobi/Jacobi.h \
+ /usr/include/eigen3/Eigen/src/Cholesky/LLT.h \
+ /usr/include/eigen3/Eigen/src/Cholesky/LDLT.h \
+ /usr/include/eigen3/Eigen/QR /usr/include/eigen3/Eigen/Householder \
+ /usr/include/eigen3/Eigen/src/Householder/Householder.h \
+ /usr/include/eigen3/Eigen/src/Householder/HouseholderSequence.h \
+ /usr/include/eigen3/Eigen/src/Householder/BlockHouseholder.h \
+ /usr/include/eigen3/Eigen/src/QR/HouseholderQR.h \
+ /usr/include/eigen3/Eigen/src/QR/FullPivHouseholderQR.h \
+ /usr/include/eigen3/Eigen/src/QR/ColPivHouseholderQR.h \
+ /usr/include/eigen3/Eigen/src/QR/CompleteOrthogonalDecomposition.h \
+ /usr/include/eigen3/Eigen/SVD \
+ /usr/include/eigen3/Eigen/src/misc/RealSvd2x2.h \
+ /usr/include/eigen3/Eigen/src/SVD/UpperBidiagonalization.h \
+ /usr/include/eigen3/Eigen/src/SVD/SVDBase.h \
+ /usr/include/eigen3/Eigen/src/SVD/JacobiSVD.h \
+ /usr/include/eigen3/Eigen/src/SVD/BDCSVD.h \
+ /usr/include/eigen3/Eigen/Geometry \
+ /usr/include/eigen3/Eigen/src/Geometry/OrthoMethods.h \
+ /usr/include/eigen3/Eigen/src/Geometry/EulerAngles.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Homogeneous.h \
+ /usr/include/eigen3/Eigen/src/Geometry/RotationBase.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Rotation2D.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Quaternion.h \
+ /usr/include/eigen3/Eigen/src/Geometry/AngleAxis.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Transform.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Translation.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Scaling.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Hyperplane.h \
+ /usr/include/eigen3/Eigen/src/Geometry/ParametrizedLine.h \
+ /usr/include/eigen3/Eigen/src/Geometry/AlignedBox.h \
+ /usr/include/eigen3/Eigen/src/Geometry/Umeyama.h \
+ /usr/include/eigen3/Eigen/src/Geometry/arch/Geometry_SIMD.h \
+ /usr/include/eigen3/Eigen/Eigenvalues \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/Tridiagonalization.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/RealSchur.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/HessenbergDecomposition.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/EigenSolver.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/RealSchur.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/SelfAdjointEigenSolver.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/Tridiagonalization.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/GeneralizedSelfAdjointEigenSolver.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/HessenbergDecomposition.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/ComplexSchur.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/ComplexEigenSolver.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/ComplexSchur.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/RealQZ.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/GeneralizedEigenSolver.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/RealQZ.h \
+ /usr/include/eigen3/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h \
+ /usr/include/kdl/chainfksolverpos_recursive.hpp \
+ /usr/include/kdl/chainfksolver.hpp \
+ /usr/include/kdl/chainiksolvervel_pinv.hpp \
+ /usr/include/kdl/chainjnttojacsolver.hpp \
+ /usr/include/kdl/utilities/svd_HH.hpp /usr/include/kdl/jacobian.hpp \
+ /usr/include/kdl/jntarray.hpp \
+ /usr/include/kdl/chainiksolverpos_nr_jl.hpp \
+ /home/texsonics/Documents/toolocct/OcctWidget.h \
  /usr/local/include/opencascade/AIS_InteractiveContext.hxx \
  /usr/local/include/opencascade/AIS_DataMapOfIOStatus.hxx \
  /usr/local/include/opencascade/AIS_InteractiveObject.hxx \
@@ -1116,6 +1361,7 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Prs3d_PointAspect.hxx \
  /usr/local/include/opencascade/Geom_Axis2Placement.hxx \
  /usr/local/include/opencascade/Geom_AxisPlacement.hxx \
+ /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /usr/local/include/opencascade/Xw_Window.hxx /usr/include/X11/Xlib.h \
  /usr/include/X11/X.h /usr/include/X11/Xfuncproto.h \
  /usr/include/X11/Xosdefs.h /usr/local/include/opencascade/TopoDS.hxx \
@@ -1141,7 +1387,6 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/Select3D_BVHIndexBuffer.hxx \
  /usr/local/include/opencascade/TColStd_HPackedMapOfInteger.hxx \
  /usr/local/include/opencascade/TColStd_HPackedMapOfInteger.lxx \
- /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /usr/local/include/opencascade/STEPCAFControl_Reader.hxx \
  /usr/local/include/opencascade/Resource_FormatType.hxx \
  /usr/local/include/opencascade/STEPControl_Reader.hxx \

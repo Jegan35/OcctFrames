@@ -4,9 +4,13 @@
 #include <cmath>
 #include <algorithm>
 #include <QMessageBox>
+#include <QFile>
+#include <QIODevice>
+#include <QTextStream>
 
 // Include your kinematics
 #include "kinematic.h"
+#include "RightPanel.h"
 
 extern KDL::Chain KDLChain;
 extern KDL::JntArray KDLJointMin;
@@ -116,8 +120,17 @@ void ClientBackend::handleButtonPress(const QString &btnText)
     if (!m_jogTimer) return;
     m_activeJogButton = btnText;
 
+    // 🚀 THE FIX 2: Correctly sort Joints, Translations (mm), and Orientations (deg)
     bool isJointJog = btnText.startsWith("J");
-    if ((isJointJog && m_degIncrement > 0.0) || (!isJointJog && m_mmIncrement > 0.0)) {
+    bool isOrientJog = btnText.startsWith("R");
+    bool isTransJog = btnText.startsWith("X") || btnText.startsWith("Y") || btnText.startsWith("Z");
+
+    bool isStepMode = false;
+    if (isJointJog && m_degIncrement > 0.0) isStepMode = true;
+    if (isOrientJog && m_degIncrement > 0.0) isStepMode = true;
+    if (isTransJog && m_mmIncrement > 0.0) isStepMode = true;
+
+    if (isStepMode) {
         executeStepJog();
     } else {
         m_jogTimer->start(16);
@@ -152,16 +165,27 @@ void ClientBackend::executeStepJog()
         else if (m_activeJogButton == "J6-") m_j6 -= m_degIncrement;
     }
     else {
-        // TCP calculation for Cartesian Jogging relative to User Frame
         KDL::Frame tcp_base = cart * m_toolFrame;
         KDL::Frame current_user_tcp = m_userFrame.Inverse() * tcp_base;
+
+        double radInc = m_degIncrement * (M_PI / 180.0);
 
         if (m_activeJogButton == "X+") current_user_tcp.p.x(current_user_tcp.p.x() + m_mmIncrement);
         else if (m_activeJogButton == "X-") current_user_tcp.p.x(current_user_tcp.p.x() - m_mmIncrement);
         else if (m_activeJogButton == "Y+") current_user_tcp.p.y(current_user_tcp.p.y() + m_mmIncrement);
         else if (m_activeJogButton == "Y-") current_user_tcp.p.y(current_user_tcp.p.y() - m_mmIncrement);
+        // Update this section inside ClientBackend::executeStepJog()
         else if (m_activeJogButton == "Z+") current_user_tcp.p.z(current_user_tcp.p.z() + m_mmIncrement);
         else if (m_activeJogButton == "Z-") current_user_tcp.p.z(current_user_tcp.p.z() - m_mmIncrement);
+
+        // 🚀 THE FIX 2: LOCAL AXIS ROTATION
+        // Multiply on the RIGHT side so the robot rotates smoothly around its own Tool Tip!
+        else if (m_activeJogButton == "Rx+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(radInc);
+        else if (m_activeJogButton == "Rx-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(-radInc);
+        else if (m_activeJogButton == "Ry+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(radInc);
+        else if (m_activeJogButton == "Ry-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(-radInc);
+        else if (m_activeJogButton == "Rz+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotZ(radInc);
+        else if (m_activeJogButton == "Rz-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotZ(-radInc);
 
         KDL::Frame target_tcp_base = m_userFrame * current_user_tcp;
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
@@ -174,7 +198,10 @@ void ClientBackend::executeStepJog()
             m_j4 = target_joints(3) * (180.0 / M_PI);
             m_j5 = target_joints(4) * (180.0 / M_PI);
             m_j6 = target_joints(5) * (180.0 / M_PI);
-        } else return;
+        } else {
+            qDebug() << "IK Failed on Step Jog! Too far.";
+            return;
+        }
     }
 
     KDLJointCur(0) = m_j1 * (M_PI / 180.0);
@@ -186,7 +213,6 @@ void ClientBackend::executeStepJog()
     m_kinematics.Fk();
     updateUIWithUserFrame();
 }
-
 // ========================================================
 // 2. CONTINUOUS JOG ENGINE (TOOL FRAME & USER FRAME AWARE)
 // ========================================================
@@ -198,6 +224,7 @@ void ClientBackend::jogTick()
 
     double jStep = actualJointSpeed * dt;
     double cStep = actualCartSpeed * dt;
+    double rStep = actualJointSpeed * dt * (M_PI / 180.0); // Degrees to Radians per tick
 
     if (m_activeJogButton.startsWith("J")) {
         if (m_activeJogButton == "J1+") m_j1 += jStep;
@@ -214,7 +241,6 @@ void ClientBackend::jogTick()
         else if (m_activeJogButton == "J6-") m_j6 -= jStep;
     }
     else {
-        // TCP calculation for Cartesian Jogging relative to User Frame
         KDL::Frame tcp_base = cart * m_toolFrame;
         KDL::Frame current_user_tcp = m_userFrame.Inverse() * tcp_base;
 
@@ -222,8 +248,17 @@ void ClientBackend::jogTick()
         else if (m_activeJogButton == "X-") current_user_tcp.p.x(current_user_tcp.p.x() - cStep);
         else if (m_activeJogButton == "Y+") current_user_tcp.p.y(current_user_tcp.p.y() + cStep);
         else if (m_activeJogButton == "Y-") current_user_tcp.p.y(current_user_tcp.p.y() - cStep);
+        // Update this section inside ClientBackend::jogTick()
         else if (m_activeJogButton == "Z+") current_user_tcp.p.z(current_user_tcp.p.z() + cStep);
         else if (m_activeJogButton == "Z-") current_user_tcp.p.z(current_user_tcp.p.z() - cStep);
+
+        // 🚀 THE FIX 3: LOCAL AXIS ROTATION (For Continuous Hold)
+        else if (m_activeJogButton == "Rx+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(rStep);
+        else if (m_activeJogButton == "Rx-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(-rStep);
+        else if (m_activeJogButton == "Ry+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(rStep);
+        else if (m_activeJogButton == "Ry-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(-rStep);
+        else if (m_activeJogButton == "Rz+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotZ(rStep);
+        else if (m_activeJogButton == "Rz-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotZ(-rStep);
 
         KDL::Frame target_tcp_base = m_userFrame * current_user_tcp;
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
@@ -248,7 +283,12 @@ void ClientBackend::jogTick()
     m_kinematics.Fk();
     updateUIWithUserFrame();
 }
-
+// ========================================================
+// MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
+// ========================================================
+// ========================================================
+// MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
+// ========================================================
 // ========================================================
 // MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
 // ========================================================
@@ -269,15 +309,21 @@ void ClientBackend::updateUIWithUserFrame()
     setProperty("y", QVariant(tcp_user.p.y()));
     setProperty("z", QVariant(tcp_user.p.z()));
 
+    // =======================================================
+    // 🧠 THE FIX: ONE BRAIN (KDL Unified Math)
+    // =======================================================
     double a, b, c;
-    tcp_user.M.GetEulerZYX(a, b, c);
-    setProperty("a", QVariant(a * (180.0 / M_PI)));
-    setProperty("b", QVariant(b * (180.0 / M_PI)));
-    setProperty("c", QVariant(c * (180.0 / M_PI)));
+    RobotMath::getUnifiedEulerDegrees(tcp_user.M, a, b, c);
+
+    setProperty("a", QVariant(a));
+    setProperty("b", QVariant(b));
+    setProperty("c", QVariant(c));
 
     emit updateRobot3DView(m_j1, m_j2, m_j3, m_j4, m_j5, m_j6);
     emit telemetryChanged();
 }
+
+
 
 void ClientBackend::stopDxfProgram()
 {
@@ -324,17 +370,17 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     std::vector<scurve::point> pathvec;
     bool rotationSet = false;
 
-    // 🚀 FIX 1: Start at i = 0 because we removed the "X,Y,Z" header!
+    // 🚀 FIX: Correct coordinates and RESTORE the 180 Flip!
     for (int i = 0; i < lines.size(); i++) {
         QString line = lines[i].trimmed();
         if (line.startsWith("---") || line.isEmpty()) continue;
 
         QStringList parts = line.split(',');
         if (parts.size() >= 3) {
-            // 🚀 FIX 2: Multiply by 1000.0 to convert meters back to millimeters for the robot!
-            double occt_x = parts[0].toDouble() * 1000.0;
-            double occt_y = parts[1].toDouble() * 1000.0;
-            double occt_z = parts[2].toDouble() * 1000.0;
+            // 🚀 REMOVED * 1000.0 (Keep it in normal millimeters!)
+            double occt_x = parts[0].toDouble();
+            double occt_y = parts[1].toDouble();
+            double occt_z = parts[2].toDouble();
 
             pathvec.push_back({occt_x, occt_y, occt_z});
 
@@ -343,7 +389,11 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                 double ry = parts[4].toDouble() * (M_PI / 180.0);
                 double rz = parts[5].toDouble() * (M_PI / 180.0);
 
+                // 🚀 FIXED: REMOVED THE 180 FLIP
+                // The CAD extraction inside OcctWidget is ALREADY flipped correctly!
+                // Flipping it again here makes it point at the ceiling, triggering OUT OF REACH!
                 g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
+
                 rotationSet = true;
             }
         }
@@ -361,35 +411,57 @@ void ClientBackend::runDxfProgram(const QString &csvData)
 
     KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
     KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
-    KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 50, 1e-4);
+    // 🚀 Increased iterations here too
+    KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 150, 1e-4);
 
     KDL::JntArray temp_joints = KDLJointCur;
     bool isReachable = true;
     int failedPointIndex = -1;
 
+    // 🚀 BUILD MULTIPLE STARTING SEEDS
+    std::vector<KDL::JntArray> seeds;
+    double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI, -M_PI};
+    double j1_opts[] = {0.0, M_PI/4, -M_PI/4};
+    double j2_opts[] = {0.0, M_PI/4, -M_PI/4};
+    double j4_opts[] = {0.0, M_PI/2, -M_PI/2};
+
+    for(double j0 : j0_opts) {
+        for(double j1 : j1_opts) {
+            for(double j2 : j2_opts) {
+                for(double j4 : j4_opts) {
+                    KDL::JntArray s(6);
+                    s(0)=j0; s(1)=j1; s(2)=j2; s(3)=0.0; s(4)=j4; s(5)=0.0;
+                    seeds.push_back(s);
+                }
+            }
+        }
+    }
+
     for (size_t i = 0; i < pathvec.size(); i++) {
-        // 1. Build the target as a LOCAL coordinate
         KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
-
-        // 2. Convert LOCAL to GLOBAL by multiplying User Frame!
         KDL::Frame target_tcp_base = m_userFrame * local_tcp;
-
-        // 3. Apply Tool Frame to get Flange target
         KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
+
+        bool point_reachable = false;
         KDL::JntArray out_joints(6);
 
-        if (i == 0) {
-            if (!m_kinematics.Ik_Optimal_Solution(target_flange_base, temp_joints, out_joints)) {
-                isReachable = false;
-                failedPointIndex = i + 1;
+        // Put the last successful joint at the very front for speed
+        seeds.insert(seeds.begin(), temp_joints);
+
+        // 🚀 RUN MULTI-SEED IK SOLVER
+        for (const auto& seed : seeds) {
+            if (iksolver.CartToJnt(seed, target_flange_base, out_joints) >= 0) {
+                point_reachable = true;
                 break;
             }
-        } else {
-            if (iksolver.CartToJnt(temp_joints, target_flange_base, out_joints) < 0) {
-                isReachable = false;
-                failedPointIndex = i + 1;
-                break;
-            }
+        }
+
+        seeds.erase(seeds.begin()); // Clean up
+
+        if (!point_reachable) {
+            isReachable = false;
+            failedPointIndex = i + 1;
+            break;
         }
         temp_joints = out_joints;
     }
@@ -399,7 +471,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         m_isCartesianPlayback = false;
         m_playbackIndex = 0;
 
-        QString msg = QString("OUT OF REACH!\nCalculation failed at point #%1.").arg(failedPointIndex);
+        QString msg = QString("OUT OF REACH!\nPoint #%1 physically breaks a Joint Limit (J5 > 120°).\nPlease move the User Frame closer or rotate the part!").arg(failedPointIndex);
         emit systemErrorTriggered(msg);
         emit programFinished();
         return;
@@ -528,3 +600,4 @@ void ClientBackend::playbackTick()
     m_kinematics.Fk();
     updateUIWithUserFrame();
 }
+

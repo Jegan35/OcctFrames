@@ -49,7 +49,10 @@ template <> constexpr inline auto OcctWidget::qt_create_metaobjectdata<qt_meta_t
         "xyzData",
         "selectionChanged",
         "isSelected",
-        "robotLoadComplete"
+        "robotLoadComplete",
+        "customStartPointCalculated",
+        "xyz",
+        "customEndPointCalculated"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -71,6 +74,14 @@ template <> constexpr inline auto OcctWidget::qt_create_metaobjectdata<qt_meta_t
         }}),
         // Signal 'robotLoadComplete'
         QtMocHelpers::SignalData<void()>(11, 2, QMC::AccessPublic, QMetaType::Void),
+        // Signal 'customStartPointCalculated'
+        QtMocHelpers::SignalData<void(const QString &)>(12, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 13 },
+        }}),
+        // Signal 'customEndPointCalculated'
+        QtMocHelpers::SignalData<void(const QString &)>(14, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 13 },
+        }}),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -99,6 +110,8 @@ void OcctWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 2: _t->coordinatesExtracted((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         case 3: _t->selectionChanged((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
         case 4: _t->robotLoadComplete(); break;
+        case 5: _t->customStartPointCalculated((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 6: _t->customEndPointCalculated((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         default: ;
         }
     }
@@ -112,6 +125,10 @@ void OcctWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         if (QtMocHelpers::indexOfMethod<void (OcctWidget::*)(bool )>(_a, &OcctWidget::selectionChanged, 3))
             return;
         if (QtMocHelpers::indexOfMethod<void (OcctWidget::*)()>(_a, &OcctWidget::robotLoadComplete, 4))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (OcctWidget::*)(const QString & )>(_a, &OcctWidget::customStartPointCalculated, 5))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (OcctWidget::*)(const QString & )>(_a, &OcctWidget::customEndPointCalculated, 6))
             return;
     }
 }
@@ -135,14 +152,14 @@ int OcctWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 5)
+        if (_id < 7)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 5;
+        _id -= 7;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 5)
+        if (_id < 7)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 5;
+        _id -= 7;
     }
     return _id;
 }
@@ -175,5 +192,17 @@ void OcctWidget::selectionChanged(bool _t1)
 void OcctWidget::robotLoadComplete()
 {
     QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
+}
+
+// SIGNAL 5
+void OcctWidget::customStartPointCalculated(const QString & _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 5, nullptr, _t1);
+}
+
+// SIGNAL 6
+void OcctWidget::customEndPointCalculated(const QString & _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 6, nullptr, _t1);
 }
 QT_WARNING_POP

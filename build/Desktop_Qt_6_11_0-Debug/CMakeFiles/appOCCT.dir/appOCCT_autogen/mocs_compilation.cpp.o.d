@@ -1288,6 +1288,7 @@ CMakeFiles/appOCCT.dir/appOCCT_autogen/mocs_compilation.cpp.o: \
  /usr/local/include/opencascade/Prs3d_PointAspect.hxx \
  /usr/local/include/opencascade/Geom_Axis2Placement.hxx \
  /usr/local/include/opencascade/Geom_AxisPlacement.hxx \
+ /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtextcursor.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtextformat.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qpen.h \
@@ -1355,6 +1356,11 @@ CMakeFiles/appOCCT.dir/appOCCT_autogen/mocs_compilation.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
  /home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/appOCCT_autogen/EWIEGA46WW/moc_OcctWidget.cpp \
  /home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/appOCCT_autogen/EWIEGA46WW/../../../../OcctWidget.h \
  /home/texsonics/Documents/toolocct/build/Desktop_Qt_6_11_0-Debug/appOCCT_autogen/EWIEGA46WW/moc_RightPanel.cpp \

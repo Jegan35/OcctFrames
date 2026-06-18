@@ -18,7 +18,8 @@
 #include <BRepBuilderAPI_Transform.hxx>
 #include <gp_Trsf.hxx>
 #include <Font_FontAspect.hxx>
-
+#include <kdl/frames.hpp>
+#include "RightPanel.h"
 
 // ==========================================
 // 2. LOCAL HEADER INCLUDED SECOND
@@ -480,14 +481,51 @@ void OcctWidget::clearSelections()
     for (const auto& step : myPathHistory) myContext->Remove(step.visualRedPath, Standard_False);
     for (const auto& step : myRedoStack) myContext->Remove(step.visualRedPath, Standard_False);
 
+    // Clear the Start Marker
+    if (!myStartPointMarker.IsNull()) {
+        myContext->Remove(myStartPointMarker, Standard_False);
+        myStartPointMarker.Nullify();
+    }
+    if (!myStartLabel.IsNull()) {
+        myContext->Remove(myStartLabel, Standard_False);
+        myStartLabel.Nullify();
+    }
+
     myPathHistory.clear();
     myRedoStack.clear();
     myContext->UpdateCurrentViewer();
 
-    regenerateCSV(); // This will clear the file
-    emit statusUpdate("❌ All selections cleared. CSV wiped.");
-}
+    // 🚀 THE FIX: Do NOT call regenerateCSV() here, otherwise it destroys the saved file.
+    // Instead, send an empty string to the Right Panel to clear the UI text box.
+    emit coordinatesExtracted("");
 
+    emit statusUpdate("❌ All marks and selections cleared.");
+}
+// ==========================================================
+// 🚀 NEW: DRAW "START" POINT MARKER ON THE PART
+// ==========================================================
+void OcctWidget::drawStartMarker(const gp_Pnt& pt)
+{
+    if (myContext.IsNull()) return;
+
+    // 1. Create a bright Green Sphere (Radius 4.0mm)
+    TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(pt, 4.0).Shape();
+    myStartPointMarker = new AIS_Shape(sphere);
+    myContext->SetColor(myStartPointMarker, Quantity_NOC_GREEN, Standard_False);
+    myContext->SetMaterial(myStartPointMarker, Graphic3d_NOM_PLASTIC, Standard_False);
+    myContext->SetDisplayMode(myStartPointMarker, 1, Standard_False);
+    myContext->Display(myStartPointMarker, Standard_False);
+
+    // 2. Create the "START" Text Label floating slightly above the point
+    myStartLabel = new AIS_TextLabel();
+    myStartLabel->SetText(TCollection_ExtendedString("START"));
+    myStartLabel->SetPosition(gp_Pnt(pt.X(), pt.Y(), pt.Z() + 15.0)); // Lift it 15mm up
+    myStartLabel->SetHeight(22);
+    myStartLabel->SetColor(Quantity_NOC_GREEN);
+    myStartLabel->SetFontAspect(Font_FA_Bold);
+    myStartLabel->SetZoomable(Standard_True);
+    myContext->Display(myStartLabel, Standard_False);
+}
 void OcctWidget::undoSelection()
 {
     if (myPathHistory.empty()) {
@@ -529,6 +567,7 @@ void OcctWidget::processCurrentSelection(double resolution)
 
     if (!(QApplication::keyboardModifiers() & Qt::ShiftModifier)) {
         clearSelections();
+        m_isFirstPointFound = false;
     }
 
     myContext->InitSelected();
@@ -574,16 +613,21 @@ void OcctWidget::processCurrentSelection(double resolution)
 
 void OcctWidget::regenerateCSV()
 {
+    // 🚀 THE FIX: If there is no active path in memory, DO NOT wipe the physical file!
+    // This keeps your last generated points perfectly safe when the app closes.
+    if (myPathHistory.empty()) {
+        return;
+    }
+
     QFile file(myCSVPath);
+    // QIODevice::Truncate will safely overwrite the old points ONLY if we have new ones to save
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         return;
     }
 
     QTextStream out(&file);
-    // 🚀 THE FIX: Removed the "X,Y,Z\n" header!
 
     for (const auto& step : myPathHistory) {
-        // 🚀 THE FIX: Removed complex OCCT scaling. We process the raw shape and convert to meters at the very end.
         switch (step.shape.ShapeType()) {
         case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution); break;
         case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution); break;
@@ -642,8 +686,10 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             gp_Vec tangentVec;
             compCurve.D1(param, pt, tangentVec);
 
+            // =========================================================
+            // 🚀 RESTORED ORIGINAL MATH: The axes that actually worked!
+            // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-
             gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
             gp_Dir y_axis(tangentVec);
 
@@ -658,41 +704,71 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
 
-            // =========================================================
-            // 🚀 THE FIX: ONLY INVERT THE TRANSLATION (X, Y, Z)
-            // Keep the rotation baked into the CSV so the Robot knows the exact angle!
-            // =========================================================
+            if (!m_isFirstPointFound) {
+                drawStartMarker(toolPos.Location());
+                m_isFirstPointFound = true;
+            }
+
             gp_Trsf inverseTranslation;
             inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
-
-            // Transform the tool position by subtracting ONLY the table's location
             toolPos.Transform(inverseTranslation);
-            // =========================================================
+
             gp_Trsf trsf;
             trsf.SetDisplacement(defaultOXY, toolPos);
 
-            Standard_Real rx, ry, rz;
-            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
+            // =========================================================
+            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
+            // =========================================================
+            // 1. Get the 3x3 Matrix from OpenCASCADE
+            gp_Mat m = trsf.VectorialPart();
 
-            // 🚀 THE FIX: Convert mm to meters (* 0.001) for the output file!
-            double x_meters = toolPos.Location().X() * 0.001;
-            double y_meters = toolPos.Location().Y() * 0.001;
-            double z_meters = toolPos.Location().Z() * 0.001;
+            // 2. Convert it into a KDL Rotation Matrix
+            KDL::Rotation kdlRot(
+                m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                m.Value(3,1), m.Value(3,2), m.Value(3,3)
+                );
 
-            out << x_meters << "," << y_meters << "," << z_meters << ","
-                << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
+            // 3. Ask the Brain for the unified degrees
+            double rx, ry, rz;
+            RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+            // =========================================================
+            // 🚀 RESTORED: MILLIMETERS
+            // =========================================================
+            double x_mm = toolPos.Location().X();
+            double y_mm = toolPos.Location().Y();
+            double z_mm = toolPos.Location().Z();
+
+            // Note: rx, ry, rz are ALREADY in degrees thanks to RobotMath
+            out << x_mm << "," << y_mm << "," << z_mm << ","
+                << rx << "," << ry << "," << rz << "\n";
         }
     }
 }
-
-
-
 
 void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution)
 {
     Standard_Real first, last;
     Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
     if (curve.IsNull()) return;
+
+    bool isTrimmedEdge = (!m_customStartEdge.IsNull() && edge.IsSame(m_customStartEdge));
+
+    if (isTrimmedEdge) {
+        Standard_Real origFirst = first;
+        Standard_Real origLast = last;
+        double pctStart = m_trimStartPct / 100.0;
+        double pctEnd = m_trimEndPct / 100.0;
+
+        if (pctStart > pctEnd) {
+            first = origFirst + (origLast - origFirst) * pctEnd;
+            last = origFirst + (origLast - origFirst) * pctStart;
+        } else {
+            first = origFirst + (origLast - origFirst) * pctStart;
+            last = origFirst + (origLast - origFirst) * pctEnd;
+        }
+    }
 
     BRepAdaptor_Curve adaptor(edge);
     GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
@@ -704,8 +780,10 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             gp_Vec tangentVec;
             adaptor.D1(param, pt, tangentVec);
 
+            // =========================================================
+            // 🚀 RESTORED ORIGINAL MATH
+            // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-
             gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
             gp_Dir y_axis(tangentVec);
 
@@ -720,36 +798,47 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
 
-            // =========================================================
-            // 🚀 THE FIX: ONLY INVERT THE TRANSLATION (X, Y, Z)
-            // Keep the rotation baked into the CSV so the Robot knows the exact angle!
-            // =========================================================
+            if (!m_isFirstPointFound) {
+                if (!isTrimmedEdge) {
+                    drawStartMarker(toolPos.Location());
+                }
+                m_isFirstPointFound = true;
+            }
+
             gp_Trsf inverseTranslation;
             inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
-
-            // Transform the tool position by subtracting ONLY the table's location
             toolPos.Transform(inverseTranslation);
-            // =========================================================
 
             gp_Trsf trsf;
             trsf.SetDisplacement(defaultOXY, toolPos);
 
-            Standard_Real rx, ry, rz;
-            trsf.GetRotation().GetEulerAngles(gp_YawPitchRoll, rz, ry, rx);
+            // =========================================================
+            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
+            // =========================================================
+            gp_Mat m = trsf.VectorialPart();
 
-            // 🚀 THE FIX: Convert mm to meters (* 0.001) for the output file!
-            double x_meters = toolPos.Location().X() * 0.001;
-            double y_meters = toolPos.Location().Y() * 0.001;
-            double z_meters = toolPos.Location().Z() * 0.001;
+            KDL::Rotation kdlRot(
+                m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                m.Value(3,1), m.Value(3,2), m.Value(3,3)
+                );
 
-            out << x_meters << "," << y_meters << "," << z_meters << ","
-                << rx * (180.0/M_PI) << "," << ry * (180.0/M_PI) << "," << rz * (180.0/M_PI) << "\n";
+            double rx, ry, rz;
+            RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+            // =========================================================
+            // 🚀 RESTORED: MILLIMETERS
+            // =========================================================
+            double x_mm = toolPos.Location().X();
+            double y_mm = toolPos.Location().Y();
+            double z_mm = toolPos.Location().Z();
+
+            // Note: rx, ry, rz are ALREADY in degrees thanks to RobotMath
+            out << x_mm << "," << y_mm << "," << z_mm << ","
+                << rx << "," << ry << "," << rz << "\n";
         }
     }
 }
-
-
-
 
 
 void OcctWidget::paintEvent(QPaintEvent *event)
@@ -1726,6 +1815,7 @@ void OcctWidget::processAllEdges(double resolution)
     }
 
     clearSelections();
+    m_isFirstPointFound = false;
     int addedCount = 0;
 
     QString txtData;
@@ -1782,4 +1872,108 @@ void OcctWidget::processAllEdges(double resolution)
     regenerateCSV();
 
     emit statusUpdate("✅ FULL SHAPE EXTRACTED as a smooth, continuous path!");
+}
+
+
+// ==========================================================
+// 🚀 CALCULATE CUSTOM START POINT & MOVE LABEL
+// ==========================================================
+void OcctWidget::calculateCustomStartPoint(double percentage)
+{
+    if (myContext.IsNull() || !myContext->HasSelectedShape()) return;
+
+    TopoDS_Shape shape = myContext->SelectedShape();
+    if (shape.ShapeType() != TopAbs_EDGE) return;
+    m_customStartEdge = TopoDS::Edge(shape);
+
+    m_trimStartPct = percentage; // Save the math!
+
+    Standard_Real first, last;
+    Handle(Geom_Curve) curve = BRep_Tool::Curve(m_customStartEdge, first, last);
+    Standard_Real targetParam = first + (last - first) * (percentage / 100.0);
+
+    gp_Pnt rawPt;
+    curve->D0(targetParam, rawPt);
+
+    // Draw Sphere
+    if (!m_customStartMarker.IsNull()) myContext->Remove(m_customStartMarker, Standard_False);
+    TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(rawPt, 4.0).Shape();
+    m_customStartMarker = new AIS_Shape(sphere);
+    myContext->SetColor(m_customStartMarker, Quantity_NOC_GREEN, Standard_False);
+    myContext->Display(m_customStartMarker, Standard_False);
+
+    // Draw "START" Label right above the Sphere!
+    if (!m_customStartLabel.IsNull()) myContext->Remove(m_customStartLabel, Standard_False);
+    m_customStartLabel = new AIS_TextLabel();
+    m_customStartLabel->SetText(TCollection_ExtendedString("START"));
+    m_customStartLabel->SetPosition(gp_Pnt(rawPt.X(), rawPt.Y(), rawPt.Z() + 15.0));
+    m_customStartLabel->SetHeight(22);
+    m_customStartLabel->SetColor(Quantity_NOC_GREEN);
+    m_customStartLabel->SetFontAspect(Font_FA_Bold);
+    myContext->Display(m_customStartLabel, Standard_True);
+
+    // 🚀 THE FIX: Convert to Robot coords and update the UI box!
+    gp_Trsf inverseTranslation;
+    inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+    gp_Pnt robotPt = rawPt.Transformed(inverseTranslation);
+
+    QString xyzText = QString("X: %1 | Y: %2 | Z: %3")
+                          .arg(robotPt.X(), 0, 'f', 2)
+                          .arg(robotPt.Y(), 0, 'f', 2)
+                          .arg(robotPt.Z(), 0, 'f', 2);
+
+    emit customStartPointCalculated(xyzText);
+    emit statusUpdate("✅ Start Point Set.");
+}
+
+
+// ==========================================================
+// 🚀 CALCULATE CUSTOM END POINT & MOVE LABEL
+// ==========================================================
+void OcctWidget::calculateCustomEndPoint(double percentage)
+{
+    if (myContext.IsNull() || !myContext->HasSelectedShape()) return;
+
+    TopoDS_Shape shape = myContext->SelectedShape();
+    if (shape.ShapeType() != TopAbs_EDGE) return;
+    m_customEndEdge = TopoDS::Edge(shape);
+
+    m_trimEndPct = percentage; // Save the math!
+
+    Standard_Real first, last;
+    Handle(Geom_Curve) curve = BRep_Tool::Curve(m_customEndEdge, first, last);
+    Standard_Real targetParam = first + (last - first) * (percentage / 100.0);
+
+    gp_Pnt rawPt;
+    curve->D0(targetParam, rawPt);
+
+    // Draw Sphere
+    if (!m_customEndMarker.IsNull()) myContext->Remove(m_customEndMarker, Standard_False);
+    TopoDS_Shape sphere = BRepPrimAPI_MakeSphere(rawPt, 4.0).Shape();
+    m_customEndMarker = new AIS_Shape(sphere);
+    myContext->SetColor(m_customEndMarker, Quantity_NOC_RED, Standard_False);
+    myContext->Display(m_customEndMarker, Standard_False);
+
+    // Draw "END" Label right above the Sphere!
+    if (!m_customEndLabel.IsNull()) myContext->Remove(m_customEndLabel, Standard_False);
+    m_customEndLabel = new AIS_TextLabel();
+    m_customEndLabel->SetText(TCollection_ExtendedString("END"));
+    m_customEndLabel->SetPosition(gp_Pnt(rawPt.X(), rawPt.Y(), rawPt.Z() + 15.0));
+    m_customEndLabel->SetHeight(22);
+    m_customEndLabel->SetColor(Quantity_NOC_RED);
+    m_customEndLabel->SetFontAspect(Font_FA_Bold);
+    myContext->Display(m_customEndLabel, Standard_True);
+
+    // 🚀 THE FIX: Convert to Robot coords and update the UI box!
+    gp_Trsf inverseTranslation;
+    inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+    gp_Pnt robotPt = rawPt.Transformed(inverseTranslation);
+
+    QString xyzText = QString("X: %1 | Y: %2 | Z: %3")
+                          .arg(robotPt.X(), 0, 'f', 2)
+                          .arg(robotPt.Y(), 0, 'f', 2)
+                          .arg(robotPt.Z(), 0, 'f', 2);
+
+    emit customEndPointCalculated(xyzText);
+    emit statusUpdate("✅ End Point Set.");
 }

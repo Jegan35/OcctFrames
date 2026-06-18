@@ -75,6 +75,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlatin1stringview.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qline.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlist.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlogging.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmalloc.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmap.h \
@@ -95,6 +96,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qprocessordetection.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrect.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrefcount.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopedpointer.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopeguard.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qset.h \
@@ -178,12 +180,14 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiexports.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtguiglobal.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtransform.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QMainWindow \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSplitter \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit \
@@ -191,6 +195,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
@@ -202,6 +207,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qmainwindow.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsplitter.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h \
@@ -773,6 +779,7 @@
   /usr/local/include/opencascade/AIS_Shape.hxx \
   /usr/local/include/opencascade/AIS_StatusOfDetection.hxx \
   /usr/local/include/opencascade/AIS_StatusOfPick.hxx \
+  /usr/local/include/opencascade/AIS_TextLabel.hxx \
   /usr/local/include/opencascade/AIS_Trihedron.hxx \
   /usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx \
   /usr/local/include/opencascade/AIS_TypeOfIso.hxx \

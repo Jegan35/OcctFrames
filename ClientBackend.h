@@ -66,7 +66,7 @@ private:
 
     double m_j1, m_j2, m_j3, m_j4, m_j5, m_j6;
 
-    kinematic m_kinematics; // <--- 2. Ensure this is declared INSIDE the class
+    kinematic m_kinematics;
 };
 
-#endif // CLIENTBACKEND_H
+#endif

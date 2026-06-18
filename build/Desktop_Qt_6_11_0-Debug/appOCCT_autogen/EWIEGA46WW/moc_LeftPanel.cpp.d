@@ -749,6 +749,7 @@
   /usr/local/include/opencascade/AIS_Shape.hxx \
   /usr/local/include/opencascade/AIS_StatusOfDetection.hxx \
   /usr/local/include/opencascade/AIS_StatusOfPick.hxx \
+  /usr/local/include/opencascade/AIS_TextLabel.hxx \
   /usr/local/include/opencascade/AIS_Trihedron.hxx \
   /usr/local/include/opencascade/AIS_TrihedronSelectionMode.hxx \
   /usr/local/include/opencascade/AIS_TypeOfIso.hxx \

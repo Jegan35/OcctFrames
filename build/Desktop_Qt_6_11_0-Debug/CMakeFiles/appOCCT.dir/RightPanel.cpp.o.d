@@ -412,6 +412,15 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QList \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
+ /usr/include/kdl/frames.hpp /usr/include/kdl/utilities/kdl-config.h \
+ /usr/include/kdl/utilities/utility.h \
+ /usr/include/kdl/utilities/kdl-config.h /usr/include/kdl/frames.inl \
  /home/texsonics/Documents/toolocct/ClientBackend.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QObject \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QTimer \
@@ -437,9 +446,6 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /usr/include/kdl/chainiksolverpos_lma.hpp \
  /usr/include/kdl/chainiksolver.hpp /usr/include/kdl/chain.hpp \
  /usr/include/kdl/segment.hpp /usr/include/kdl/frames.hpp \
- /usr/include/kdl/utilities/kdl-config.h \
- /usr/include/kdl/utilities/utility.h \
- /usr/include/kdl/utilities/kdl-config.h /usr/include/kdl/frames.inl \
  /usr/include/kdl/rigidbodyinertia.hpp \
  /usr/include/kdl/rotationalinertia.hpp /usr/include/kdl/joint.hpp \
  /usr/include/kdl/framevel.hpp /usr/include/kdl/utilities/rall1d.h \
@@ -648,7 +654,7 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /usr/include/kdl/chainjnttojacsolver.hpp \
  /usr/include/kdl/utilities/svd_HH.hpp /usr/include/kdl/jacobian.hpp \
  /usr/include/kdl/jntarray.hpp \
- /usr/include/kdl/chainiksolverpos_nr_jl.hpp /usr/include/kdl/frames.hpp \
+ /usr/include/kdl/chainiksolverpos_nr_jl.hpp \
  /home/texsonics/Documents/toolocct/OcctWidget.h \
  /usr/local/include/opencascade/AIS_InteractiveContext.hxx \
  /usr/local/include/opencascade/AIS_DataMapOfIOStatus.hxx \
@@ -1299,6 +1305,7 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /usr/local/include/opencascade/Prs3d_PointAspect.hxx \
  /usr/local/include/opencascade/Geom_Axis2Placement.hxx \
  /usr/local/include/opencascade/Geom_AxisPlacement.hxx \
+ /usr/local/include/opencascade/AIS_TextLabel.hxx \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QHBoxLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QGridLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QFormLayout \
@@ -1318,7 +1325,6 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcoreapplication_platform.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qguiapplication.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qinputmethod.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qguiapplication_platform.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QFileDialog \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qfiledialog.h \
@@ -1340,9 +1346,6 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
@@ -1351,4 +1354,258 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qmessagebox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qdialogbuttonbox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QGroupBox \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgroupbox.h
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgroupbox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSharedPointer \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/QtConcurrent \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/QtConcurrentDepends \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QtCore \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QtCoreDepends \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q20algorithm.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q20chrono.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q20map.h \
+ /usr/include/c++/11/memory_resource /usr/include/c++/11/shared_mutex \
+ /usr/include/c++/11/bits/std_mutex.h \
+ /usr/include/c++/11/bits/uses_allocator_args.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q20vector.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q23functional.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q26numeric.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractanimation.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractnativeeventfilter.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractproxymodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qanimationgroup.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qapplicationstatic.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QMutex \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmutex.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtsan_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qassociativeiterable.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qatomicscopedvaluerollback.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qbitarray.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qbuffer.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qbytearraymatcher.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcache.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborarray.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborvalue.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborcommon.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/quuid.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcbormap.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborstream.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborstreamreader.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcborstreamwriter.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qchronotimer.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qproperty.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpropertyprivate.h \
+ /usr/include/c++/11/experimental/source_location \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcollator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcommandlineoption.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcommandlineparser.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qconcatenatetablesproxymodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcryptographichash.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qdiriterator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qeasingcurve.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qelapsedtimer.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qexception.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfactoryinterface.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfileselector.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QObject \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QStringList \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfilesystemwatcher.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfuture.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfutureinterface.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qresultstore.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfuture_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qthreadpool.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qthread.h \
+ /usr/include/c++/11/future /usr/include/c++/11/mutex \
+ /usr/include/c++/11/bits/unique_lock.h \
+ /usr/include/c++/11/condition_variable \
+ /usr/include/c++/11/bits/atomic_futex.h \
+ /usr/include/c++/11/bits/std_thread.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrunnable.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpromise.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfuturesynchronizer.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qfuturewatcher.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qidentityproxymodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qitemselectionmodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qjsonarray.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qjsonvalue.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qjsondocument.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qjsonparseerror.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qjsonobject.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlatin1stringmatcher.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlibrary.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlibraryinfo.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qversionnumber.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtyperevision.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlockfile.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qloggingcategory.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmessageauthenticationcode.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmetaassociation.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qiterable_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmetaobject.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmetasequence.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmimedata.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmimedatabase.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qmimetype.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qobjectcleanuphandler.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qoperatingsystemversion.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qparallelanimationgroup.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpauseanimation.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpermissions.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qplugin.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpointer.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpluginloader.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qprocess.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qpropertyanimation.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qvariantanimation.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qqueue.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrandom.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrangemodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrangemodel_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qquasivirtual_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qscopedvaluerollback.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrangemodeladapter.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qrangemodeladapter_impl.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qreadwritelock.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qresource.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsavefile.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsemaphore.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsequentialanimationgroup.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsequentialiterable.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsharedmemory.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtipccommon.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsignalmapper.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsimd.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/immintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/x86gprintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/ia32intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/adxintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/bmiintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/bmi2intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/cetintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/cldemoteintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/clflushoptintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/clwbintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/clzerointrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/enqcmdintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/fxsrintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/lzcntintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/lwpintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/movdirintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/mwaitintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/mwaitxintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/pconfigintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/popcntintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/pkuintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/rdseedintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/rtmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/serializeintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/sgxintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/tbmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/tsxldtrkintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/uintrintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/waitpkgintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/wbnoinvdintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xsaveintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xsavecintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xsaveoptintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xsavesintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/xtestintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/hresetintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/pmmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/tmmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/smmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/wmmintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avxintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avxvnniintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx2intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512fintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512erintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512pfintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512cdintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512bwintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512dqintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vlbwintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vldqintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512ifmaintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512ifmavlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vbmiintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vbmivlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx5124fmapsintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx5124vnniwintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vpopcntdqintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vbmi2intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vbmi2vlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vnniintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vnnivlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vpopcntdqvlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512bitalgintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vp2intersectintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512vp2intersectvlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/shaintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/fmaintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/f16cintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/gfniintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/vaesintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/vpclmulqdqintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512bf16vlintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/avx512bf16intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/amxtileintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/amxint8intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/amxbf16intrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/prfchwintrin.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/keylockerintrin.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsocketnotifier.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsortfilterproxymodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstack.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstandardpaths.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstaticlatin1stringmatcher.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstorageinfo.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstringlistmodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qstringliteral.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsystemsemaphore.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtcoreversion.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtemporarydir.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtemporaryfile.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtextboundaryfinder.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qthreadstorage.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtimeline.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtmocconstants.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtranslator.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtransposeproxymodel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qtsymbolmacros.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qurlquery.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qvarianthash.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QHash \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QVariant \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QString \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qvariantlist.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QList \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qvariantmap.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QMap \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qvector.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qwaitcondition.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QDeadlineTimer \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qwineventnotifier.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qxmlstream.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qxpfunctional.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtaskbuilder.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentstoredfunctioncall.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrent_global.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentexports.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentrunbase.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentcompilertest.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentfilter.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentfilterkernel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentiteratekernel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentmedian.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentthreadengine.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentmapkernel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentreducekernel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentfunctionwrappers.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentmap.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentrun.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrenttask.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtConcurrent/qtconcurrentversion.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QFutureWatcher \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QPointer
