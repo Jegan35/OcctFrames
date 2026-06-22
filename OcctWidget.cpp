@@ -115,11 +115,11 @@ Handle(AIS_ColoredShape) OcctWidget::createThickTriad(double scale)
     BRep_Builder builder;
     builder.MakeCompound(triad);
 
-    // 🚀 THE FIX: தடிமனை (Thickness) மற்றும் நீளத்தைக் கணிசமாகக் குறைத்துள்ளோம்!
-    double cylR = 2.5 * scale;   // உருளையின் தடிமன் (முன்பு 7.0 இருந்தது)
-    double cylL = 60.0 * scale;  // நீளம் (முன்பு 80.0 இருந்தது)
-    double coneR = 7.0 * scale;  // அம்புக்குறியின் தடிமன் (முன்பு 16.0 இருந்தது)
-    double coneL = 18.0 * scale; // அம்புக்குறியின் நீளம் (முன்பு 25.0 இருந்தது)
+
+    double cylR = 2.5 * scale;
+    double cylL = 60.0 * scale;
+    double coneR = 7.0 * scale;
+    double coneL = 18.0 * scale;
 
     // X Axis
     TopoDS_Shape xCyl = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0,0,0), gp_Dir(1,0,0)), cylR, cylL).Shape();
@@ -137,7 +137,7 @@ Handle(AIS_ColoredShape) OcctWidget::createThickTriad(double scale)
     builder.Add(triad, yCyl); builder.Add(triad, yCone);
     builder.Add(triad, zCyl); builder.Add(triad, zCone);
 
-    // மெஷ் ஆப்டிமைசேஷன்
+
     BRepMesh_IncrementalMesh(triad, 5.0);
 
     Handle(AIS_ColoredShape) coloredTriad = new AIS_ColoredShape(triad);
@@ -203,10 +203,8 @@ void OcctWidget::initOCCT()
     // Hardware Anti-Aliasing for smooth lines (1080p Optimized)
     myView->ChangeRenderingParams().IsAntialiasingEnabled = Standard_True;
 
-    // 🚀 THE FIX: 1080p-க்கு 8x MSAA போதுமானது. பர்ஃபாமென்ஸ் (Performance) அருமையாக இருக்கும்.
     myView->ChangeRenderingParams().NbMsaaSamples = 8;
 
-    // 🚀 NEW: கோடுகளை (Lines) மிகவும் மென்மையாகக் காட்ட
     myView->ChangeRenderingParams().LineFeather = 1.0;
 
     // ==========================================
@@ -326,7 +324,7 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         }
         if (edgesAdded > 0) {
             try {
-                // 🚀 THE FIX: DXF மையத்தைக் கண்டுபிடித்து, அதையே நிரந்தர Origin ஆக்குகிறோம்
+
                 Bnd_Box boundingBox;
                 BRepBndLib::Add(comp, boundingBox);
                 Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
@@ -385,7 +383,7 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         if (labels.Length() > 0) {
             TDF_Label aLabel = labels.Value(1);
 
-            // 🚀 THE FIX: STEP மையத்தைக் கண்டுபிடித்து, அதையே நிரந்தர Origin ஆக்குகிறோம்
+
             TopoDS_Shape baseShape = XCAFDoc_ShapeTool::GetShape(aLabel);
             Bnd_Box boundingBox;
             BRepBndLib::Add(baseShape, boundingBox);
@@ -396,7 +394,6 @@ void OcctWidget::loadStepFile(const std::string& filePath)
             gp_Trsf centerTrsf;
             centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
 
-            // பார்ட்டை மையத்திற்கு நகர்த்துகிறோம்
             TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(baseShape, centerTrsf).Shape();
 
             myLoadedPart = new AIS_Shape(centeredShape);
