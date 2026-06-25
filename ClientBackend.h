@@ -20,6 +20,7 @@ public:
     explicit ClientBackend(QObject *parent = nullptr);
     void setUserFrame(double x, double y, double z);
     void setPathOffset(double px, double py, double pz);
+    void setLiveRuntimeOffset(double ox, double oy, double oz);
 
 signals:
     void updateRobot3DView(double j1, double j2, double j3, double j4, double j5, double j6);
@@ -69,6 +70,9 @@ private:
     double m_pathOffsetX = 0.0;
     double m_pathOffsetY = 0.0;
     double m_pathOffsetZ = 0.0;
+    double m_liveOffsetX = 0.0;
+    double m_liveOffsetY = 0.0;
+    double m_liveOffsetZ = 0.0;
 
     kinematic m_kinematics;
 };

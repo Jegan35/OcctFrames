@@ -1159,16 +1159,21 @@ QWidget* RightPanel::buildToolWidget()
             btnEdit->setProperty("isEditing", false);
 
             // If they edited the currently active tool, refresh the robot immediately!
+            // If they edited the currently active tool, refresh the robot immediately!
             if (m_activeToolIndex == idx) {
                 updateActiveLabel();
-                // Combine Frame + Offset for the robot
-                double totalX = m_toolFrames[idx].x + m_toolFrames[idx].ox;
-                double totalY = m_toolFrames[idx].y + m_toolFrames[idx].oy;
-                double totalZ = m_toolFrames[idx].z + m_toolFrames[idx].oz;
 
-                // 🚀 Send path offsets to backend dynamically!
+                // 🚀 FIXED: Tool TCP-க்கு physical dimensions (x, y, z) மட்டும் தான் செல்ல வேண்டும்!
+                double totalX = m_toolFrames[idx].x;
+                double totalY = m_toolFrames[idx].y;
+                double totalZ = m_toolFrames[idx].z;
+
                 if (m_backend) {
+                    // 1. Radial Scaling (Star Expand)
                     m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
+
+                    // 2. Linear Shift (Live Movement Offset)
+                    m_backend->setLiveRuntimeOffset(m_toolFrames[idx].ox, m_toolFrames[idx].oy, m_toolFrames[idx].oz);
                 }
 
                 emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
@@ -1184,12 +1189,15 @@ QWidget* RightPanel::buildToolWidget()
             saveToolFramesConfig();
             updateActiveLabel();
 
-            double totalX = m_toolFrames[idx].x + m_toolFrames[idx].ox;
-            double totalY = m_toolFrames[idx].y + m_toolFrames[idx].oy;
-            double totalZ = m_toolFrames[idx].z + m_toolFrames[idx].oz;
+            // 🚀 FIXED: Tool TCP-க்கு physical dimensions மட்டும் தான் செல்ல வேண்டும்
+            double totalX = m_toolFrames[idx].x;
+            double totalY = m_toolFrames[idx].y;
+            double totalZ = m_toolFrames[idx].z;
 
-            // 🚀 Tell the backend to use the path offset!
-            if (m_backend) m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
+            if (m_backend) {
+                m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
+                m_backend->setLiveRuntimeOffset(m_toolFrames[idx].ox, m_toolFrames[idx].oy, m_toolFrames[idx].oz);
+            }
 
             emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
         }
