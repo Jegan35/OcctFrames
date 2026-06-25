@@ -148,6 +148,7 @@ private:
         QString name;
         double x, y, z;      // Static Tool Frame (Physical tool dimensions)
         double ox, oy, oz;   // NEW: Dynamic Live Offset (Fine-tuning)
+        double px, py, pz;
     };
 
     QList<ToolFrameData> m_toolFrames;

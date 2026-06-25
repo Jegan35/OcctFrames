@@ -19,6 +19,7 @@ class ClientBackend : public QObject
 public:
     explicit ClientBackend(QObject *parent = nullptr);
     void setUserFrame(double x, double y, double z);
+    void setPathOffset(double px, double py, double pz);
 
 signals:
     void updateRobot3DView(double j1, double j2, double j3, double j4, double j5, double j6);
@@ -65,6 +66,9 @@ private:
     QTimer* m_playbackTimer = nullptr;
 
     double m_j1, m_j2, m_j3, m_j4, m_j5, m_j6;
+    double m_pathOffsetX = 0.0;
+    double m_pathOffsetY = 0.0;
+    double m_pathOffsetZ = 0.0;
 
     kinematic m_kinematics;
 };

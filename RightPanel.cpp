@@ -966,7 +966,27 @@ QWidget* RightPanel::buildToolWidget()
     eLay->addWidget(new QLabel("Offset Y:"), 4, 2); eLay->addWidget(txtOY, 4, 3);
     eLay->addWidget(new QLabel("Offset Z:"), 4, 4); eLay->addWidget(txtOZ, 4, 5);
 
-    // --- Row 3: Action Buttons ---
+    // ==========================================
+    // 🚀 NEW Row 3: Path Offset XYZ
+    // ==========================================
+    // ==========================================
+    // 🚀 NEW Row 3: Path Offset XYZ
+    // ==========================================
+    QLineEdit *txtPX = new QLineEdit(); txtPX->setStyleSheet(readStyle); txtPX->setReadOnly(true);
+    QLineEdit *txtPY = new QLineEdit(); txtPY->setStyleSheet(readStyle); txtPY->setReadOnly(true);
+    QLineEdit *txtPZ = new QLineEdit(); txtPZ->setStyleSheet(readStyle); txtPZ->setReadOnly(true);
+
+
+    QLabel *lblPathInfo = new QLabel("PATH MODIFIER (Contour Expansion & Z Hover)");
+    lblPathInfo->setStyleSheet("color:#00E5FF; font-weight:bold; font-size:11px;");
+    eLay->addWidget(lblPathInfo, 5, 0, 1, 6);
+
+
+    eLay->addWidget(new QLabel("Expand XY (mm):"), 6, 0); eLay->addWidget(txtPX, 6, 1);
+    eLay->addWidget(new QLabel("Unused Y:"), 6, 2); eLay->addWidget(txtPY, 6, 3);
+    eLay->addWidget(new QLabel("Hover Z (mm):"), 6, 4); eLay->addWidget(txtPZ, 6, 5);
+
+    // --- Row 4: Action Buttons (Shifted to row 7) ---
     QHBoxLayout *actLay = new QHBoxLayout();
     QPushButton *btnEdit = new QPushButton("✏️ EDIT SELECTED TOOL");
     btnEdit->setProperty("isEditing", false);
@@ -977,7 +997,7 @@ QWidget* RightPanel::buildToolWidget()
 
     actLay->addWidget(btnEdit);
     actLay->addWidget(btnSet);
-    eLay->addLayout(actLay, 5, 0, 1, 6);
+    eLay->addLayout(actLay, 7, 0, 1, 6); // 🚀 SHIFTED TO ROW 7
 
     mainLay->addWidget(grpEdit);
     mainLay->addStretch();
@@ -1008,9 +1028,13 @@ QWidget* RightPanel::buildToolWidget()
             txtOX->setText(QString::number(m_toolFrames[idx].ox));
             txtOY->setText(QString::number(m_toolFrames[idx].oy));
             txtOZ->setText(QString::number(m_toolFrames[idx].oz));
+            txtPX->setText(QString::number(m_toolFrames[idx].px));
+            txtPY->setText(QString::number(m_toolFrames[idx].py));
+            txtPZ->setText(QString::number(m_toolFrames[idx].pz));
         } else {
             txtName->clear(); txtX->clear(); txtY->clear(); txtZ->clear();
             txtOX->clear(); txtOY->clear(); txtOZ->clear();
+            txtPX->clear(); txtPY->clear(); txtPZ->clear();
         }
     };
 
@@ -1058,13 +1082,18 @@ QWidget* RightPanel::buildToolWidget()
     });
 
     // Event: Remove Tool From Robot (Detach)
+    // Event: Remove Tool From Robot (Detach)
     connect(btnRemoveTool, &QPushButton::clicked, [=](){
         m_activeToolIndex = -1;
         updateActiveLabel();
         saveToolFramesConfig();
-        emit requestMainClearTool(); // Command robot to remove tool
+
+        // 🚀 Reset the path offset back to zero!
+        if (m_backend) m_backend->setPathOffset(0.0, 0.0, 0.0);
+        emit requestMainClearTool();
     });
 
+    // Event: Edit / Save Logic
     // Event: Edit / Save Logic
     connect(btnEdit, &QPushButton::clicked, [=](){
         int idx = cmbToolSelect->currentIndex();
@@ -1081,6 +1110,11 @@ QWidget* RightPanel::buildToolWidget()
             txtOY->setReadOnly(false); txtOY->setStyleSheet(editStyle);
             txtOZ->setReadOnly(false); txtOZ->setStyleSheet(editStyle);
 
+            // 🚀 UNLOCK PATH OFFSETS
+            txtPX->setReadOnly(false); txtPX->setStyleSheet(editStyle);
+            txtPY->setReadOnly(false); txtPY->setStyleSheet(editStyle);
+            txtPZ->setReadOnly(false); txtPZ->setStyleSheet(editStyle);
+
             cmbToolSelect->setEnabled(false); // Lock dropdown while editing
             btnEdit->setText("📂 SAVE CONFIGURATION");
             btnEdit->setStyleSheet("QPushButton{background:#F59E0B; color:black; font-weight:bold; padding:10px; border-radius:4px;}");
@@ -1096,6 +1130,11 @@ QWidget* RightPanel::buildToolWidget()
             m_toolFrames[idx].oy = txtOY->text().toDouble();
             m_toolFrames[idx].oz = txtOZ->text().toDouble();
 
+            // 🚀 SAVE PATH OFFSETS
+            m_toolFrames[idx].px = txtPX->text().toDouble();
+            m_toolFrames[idx].py = txtPY->text().toDouble();
+            m_toolFrames[idx].pz = txtPZ->text().toDouble();
+
             // Update dropdown name if changed
             cmbToolSelect->setItemText(idx, m_toolFrames[idx].name);
             saveToolFramesConfig();
@@ -1109,6 +1148,11 @@ QWidget* RightPanel::buildToolWidget()
             txtOY->setReadOnly(true); txtOY->setStyleSheet(readStyle);
             txtOZ->setReadOnly(true); txtOZ->setStyleSheet(readStyle);
 
+            // 🚀 LOCK PATH OFFSETS
+            txtPX->setReadOnly(true); txtPX->setStyleSheet(readStyle);
+            txtPY->setReadOnly(true); txtPY->setStyleSheet(readStyle);
+            txtPZ->setReadOnly(true); txtPZ->setStyleSheet(readStyle);
+
             cmbToolSelect->setEnabled(true);
             btnEdit->setText("✏️ EDIT SELECTED TOOL");
             btnEdit->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:10px; border-radius:4px;}");
@@ -1121,6 +1165,12 @@ QWidget* RightPanel::buildToolWidget()
                 double totalX = m_toolFrames[idx].x + m_toolFrames[idx].ox;
                 double totalY = m_toolFrames[idx].y + m_toolFrames[idx].oy;
                 double totalZ = m_toolFrames[idx].z + m_toolFrames[idx].oz;
+
+                // 🚀 Send path offsets to backend dynamically!
+                if (m_backend) {
+                    m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
+                }
+
                 emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
             }
         }
@@ -1134,10 +1184,12 @@ QWidget* RightPanel::buildToolWidget()
             saveToolFramesConfig();
             updateActiveLabel();
 
-            // Combine Frame + Offset for the robot
             double totalX = m_toolFrames[idx].x + m_toolFrames[idx].ox;
             double totalY = m_toolFrames[idx].y + m_toolFrames[idx].oy;
             double totalZ = m_toolFrames[idx].z + m_toolFrames[idx].oz;
+
+            // 🚀 Tell the backend to use the path offset!
+            if (m_backend) m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
 
             emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
         }
@@ -1159,10 +1211,13 @@ void RightPanel::saveToolFramesConfig()
         settings.setValue("x", m_toolFrames[i].x);
         settings.setValue("y", m_toolFrames[i].y);
         settings.setValue("z", m_toolFrames[i].z);
-        // Save the new offsets
         settings.setValue("ox", m_toolFrames[i].ox);
         settings.setValue("oy", m_toolFrames[i].oy);
         settings.setValue("oz", m_toolFrames[i].oz);
+        // 🚀 NEW PATH OFFSETS
+        settings.setValue("px", m_toolFrames[i].px);
+        settings.setValue("py", m_toolFrames[i].py);
+        settings.setValue("pz", m_toolFrames[i].pz);
     }
     settings.endArray();
     settings.setValue("ActiveToolIndex", m_activeToolIndex);
@@ -1181,21 +1236,23 @@ void RightPanel::loadToolFramesConfig()
             double x = settings.value("x", 0.0).toDouble();
             double y = settings.value("y", 0.0).toDouble();
             double z = settings.value("z", 0.0).toDouble();
-            // Load the new offsets (defaults to 0.0 if not found in old save files)
             double ox = settings.value("ox", 0.0).toDouble();
             double oy = settings.value("oy", 0.0).toDouble();
             double oz = settings.value("oz", 0.0).toDouble();
+            // 🚀 NEW PATH OFFSETS
+            double px = settings.value("px", 0.0).toDouble();
+            double py = settings.value("py", 0.0).toDouble();
+            double pz = settings.value("pz", 0.0).toDouble();
 
-            m_toolFrames.append(ToolFrameData{name, x, y, z, ox, oy, oz});
+            m_toolFrames.append(ToolFrameData{name, x, y, z, ox, oy, oz, px, py, pz});
         }
     } else {
-        m_toolFrames.append(ToolFrameData{"TOOL1_LAZER", 0.0, 0.0, 150.0, 0.0, 0.0, 0.0});
+        // Updated default tool format
+        m_toolFrames.append(ToolFrameData{"TOOL1_LAZER", 0.0, 0.0, 150.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     }
     settings.endArray();
     m_activeToolIndex = settings.value("ActiveToolIndex", -1).toInt();
 }
-
-
 
 // ============================================================
 //  REFRESH TOOL UI (PERFECTLY ALIGNED DYNAMIC ROWS)

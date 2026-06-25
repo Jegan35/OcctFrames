@@ -499,6 +499,29 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             double occt_y = parts[1].toDouble();
             double occt_z = parts[2].toDouble();
 
+            // =========================================================
+            // 🚀 THE FIX: RADIAL EXPANSION (ஸ்டாரை சுற்றி ஓட)
+            // =========================================================
+            // Path X (m_pathOffsetX) இல் கொடுக்கும் அளவு,
+            // மையத்திலிருந்து (Center) வெளிப்புறமாக வடிவத்தை விரிவுபடுத்தும்.
+            if (m_pathOffsetX != 0.0) {
+                // 1. மையத்திலிருந்து இந்த புள்ளி எவ்வளவு தூரம் (Radius) என்று கணக்கிடுகிறோம்.
+                double r = std::sqrt(occt_x * occt_x + occt_y * occt_y);
+
+                // 2. Exact சென்டர் பாயிண்டில் வகுத்தல் பிழை (Divide by Zero) வராமல் தடுக்க:
+                if (r > 0.001) {
+                    // 3. பழைய தூரத்துடன், நாம் கொடுத்த 10mm-ஐ கூட்டி Scale கண்டுபிடிக்கிறோம்.
+                    double scale = (r + m_pathOffsetX) / r;
+
+                    // 4. X மற்றும் Y ஐ மட்டும் பெரிதாக்குகிறோம்.
+                    occt_x = occt_x * scale;
+                    occt_y = occt_y * scale;
+                }
+            }
+
+            // Path Z ஐ மட்டும் நேராக கூட்டிக் கொள்கிறோம் (உயரத்தில் Hover செய்ய)
+            occt_z = occt_z + m_pathOffsetZ;
+
             pathvec.push_back({occt_x, occt_y, occt_z});
 
             if (parts.size() >= 6 && !rotationSet) {
@@ -711,4 +734,11 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
+}
+
+void ClientBackend::setPathOffset(double px, double py, double pz)
+{
+    m_pathOffsetX = px;
+    m_pathOffsetY = py;
+    m_pathOffsetZ = pz;
 }
