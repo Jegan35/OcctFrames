@@ -364,131 +364,10 @@ void ClientBackend::setToolFrame(double x, double y, double z)
 
 
 
-void ClientBackend::runDxfProgram(const QString &csvData)
-{
-    QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
-    std::vector<scurve::point> pathvec;
-    bool rotationSet = false;
 
-    // 🚀 FIX: Correct coordinates and RESTORE the 180 Flip!
-    for (int i = 0; i < lines.size(); i++) {
-        QString line = lines[i].trimmed();
-        if (line.startsWith("---") || line.isEmpty()) continue;
 
-        QStringList parts = line.split(',');
-        if (parts.size() >= 3) {
-            // 🚀 REMOVED * 1000.0 (Keep it in normal millimeters!)
-            double occt_x = parts[0].toDouble();
-            double occt_y = parts[1].toDouble();
-            double occt_z = parts[2].toDouble();
 
-            pathvec.push_back({occt_x, occt_y, occt_z});
 
-            if (parts.size() >= 6 && !rotationSet) {
-                double rx = parts[3].toDouble() * (M_PI / 180.0);
-                double ry = parts[4].toDouble() * (M_PI / 180.0);
-                double rz = parts[5].toDouble() * (M_PI / 180.0);
-
-                // 🚀 FIXED: REMOVED THE 180 FLIP
-                // The CAD extraction inside OcctWidget is ALREADY flipped correctly!
-                // Flipping it again here makes it point at the ceiling, triggering OUT OF REACH!
-                g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
-
-                rotationSet = true;
-            }
-        }
-    }
-
-    if (pathvec.size() < 2) return;
-
-    // Get the CURRENT TCP in LOCAL User Frame coordinates!
-    KDL::Frame current_tcp_base = cart * m_toolFrame;
-    KDL::Frame current_user_tcp = m_userFrame.Inverse() * current_tcp_base;
-
-    if (!rotationSet) {
-        g_drawingRotation = current_user_tcp.M;
-    }
-
-    KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
-    KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
-    // 🚀 Increased iterations here too
-    KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 150, 1e-4);
-
-    KDL::JntArray temp_joints = KDLJointCur;
-    bool isReachable = true;
-    int failedPointIndex = -1;
-
-    // 🚀 BUILD MULTIPLE STARTING SEEDS
-    std::vector<KDL::JntArray> seeds;
-    double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI, -M_PI};
-    double j1_opts[] = {0.0, M_PI/4, -M_PI/4};
-    double j2_opts[] = {0.0, M_PI/4, -M_PI/4};
-    double j4_opts[] = {0.0, M_PI/2, -M_PI/2};
-
-    for(double j0 : j0_opts) {
-        for(double j1 : j1_opts) {
-            for(double j2 : j2_opts) {
-                for(double j4 : j4_opts) {
-                    KDL::JntArray s(6);
-                    s(0)=j0; s(1)=j1; s(2)=j2; s(3)=0.0; s(4)=j4; s(5)=0.0;
-                    seeds.push_back(s);
-                }
-            }
-        }
-    }
-
-    for (size_t i = 0; i < pathvec.size(); i++) {
-        KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
-        KDL::Frame target_tcp_base = m_userFrame * local_tcp;
-        KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
-
-        bool point_reachable = false;
-        KDL::JntArray out_joints(6);
-
-        // Put the last successful joint at the very front for speed
-        seeds.insert(seeds.begin(), temp_joints);
-
-        // 🚀 RUN MULTI-SEED IK SOLVER
-        for (const auto& seed : seeds) {
-            if (iksolver.CartToJnt(seed, target_flange_base, out_joints) >= 0) {
-                point_reachable = true;
-                break;
-            }
-        }
-
-        seeds.erase(seeds.begin()); // Clean up
-
-        if (!point_reachable) {
-            isReachable = false;
-            failedPointIndex = i + 1;
-            break;
-        }
-        temp_joints = out_joints;
-    }
-
-    if (!isReachable) {
-        if (m_playbackTimer && m_playbackTimer->isActive()) m_playbackTimer->stop();
-        m_isCartesianPlayback = false;
-        m_playbackIndex = 0;
-
-        QString msg = QString("OUT OF REACH!\nPoint #%1 physically breaks a Joint Limit (J5 > 120°).\nPlease move the User Frame closer or rotate the part!").arg(failedPointIndex);
-        emit systemErrorTriggered(msg);
-        emit programFinished();
-        return;
-    }
-
-    // Insert the local starting point, not the global one!
-    pathvec.insert(pathvec.begin(), { current_user_tcp.p.x(), current_user_tcp.p.y(), current_user_tcp.p.z() });
-
-    scurve trajectoryPlanner;
-    double maxVel = 200.0 * (m_autoRunSpeedPercent / 100.0);
-    if (maxVel < 5.0) maxVel = 5.0;
-
-    m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
-    m_isCartesianPlayback = true;
-    m_playbackIndex = 0;
-    m_playbackTimer->start(16);
-}
 
 void ClientBackend::playbackTick()
 {
@@ -601,3 +480,235 @@ void ClientBackend::playbackTick()
     updateUIWithUserFrame();
 }
 
+
+
+void ClientBackend::runDxfProgram(const QString &csvData)
+{
+    QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
+    std::vector<scurve::point> pathvec;
+    bool rotationSet = false;
+
+    // 🚀 FIX: Correct coordinates and RESTORE the 180 Flip!
+    for (int i = 0; i < lines.size(); i++) {
+        QString line = lines[i].trimmed();
+        if (line.startsWith("---") || line.isEmpty()) continue;
+
+        QStringList parts = line.split(',');
+        if (parts.size() >= 3) {
+            double occt_x = parts[0].toDouble();
+            double occt_y = parts[1].toDouble();
+            double occt_z = parts[2].toDouble();
+
+            pathvec.push_back({occt_x, occt_y, occt_z});
+
+            if (parts.size() >= 6 && !rotationSet) {
+                double rx = parts[3].toDouble() * (M_PI / 180.0);
+                double ry = parts[4].toDouble() * (M_PI / 180.0);
+                double rz = parts[5].toDouble() * (M_PI / 180.0);
+
+                g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
+                rotationSet = true;
+            }
+        }
+    }
+
+    if (pathvec.size() < 2) return;
+
+    // Get the CURRENT TCP in LOCAL User Frame coordinates!
+    KDL::Frame current_tcp_base = cart * m_toolFrame;
+    KDL::Frame current_user_tcp = m_userFrame.Inverse() * current_tcp_base;
+
+    if (!rotationSet) {
+        g_drawingRotation = current_user_tcp.M;
+    }
+
+    KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
+    KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
+    KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 150, 1e-4);
+
+    KDL::JntArray temp_joints = KDLJointCur;
+    bool isReachable = true;
+    int failedPointIndex = -1;
+
+    // 🚀 BUILD MULTIPLE STARTING SEEDS
+    std::vector<KDL::JntArray> seeds;
+    double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI, -M_PI};
+    double j1_opts[] = {0.0, M_PI/4, -M_PI/4};
+    double j2_opts[] = {0.0, M_PI/4, -M_PI/4};
+    double j4_opts[] = {0.0, M_PI/2, -M_PI/2};
+
+    for(double j0 : j0_opts) {
+        for(double j1 : j1_opts) {
+            for(double j2 : j2_opts) {
+                for(double j4 : j4_opts) {
+                    KDL::JntArray s(6);
+                    s(0)=j0; s(1)=j1; s(2)=j2; s(3)=0.0; s(4)=j4; s(5)=0.0;
+                    seeds.push_back(s);
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < pathvec.size(); i++) {
+        KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pathvec[i].x, pathvec[i].y, pathvec[i].z));
+        KDL::Frame target_tcp_base = m_userFrame * local_tcp;
+        KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
+
+        bool point_reachable = false;
+        KDL::JntArray out_joints(6);
+
+        seeds.insert(seeds.begin(), temp_joints);
+
+        for (const auto& seed : seeds) {
+            if (iksolver.CartToJnt(seed, target_flange_base, out_joints) >= 0) {
+                point_reachable = true;
+                break;
+            }
+        }
+
+        seeds.erase(seeds.begin());
+
+        if (!point_reachable) {
+            isReachable = false;
+            failedPointIndex = i + 1;
+            break;
+        }
+        temp_joints = out_joints;
+    }
+
+    if (!isReachable) {
+        if (m_playbackTimer && m_playbackTimer->isActive()) m_playbackTimer->stop();
+        m_isCartesianPlayback = false;
+        m_playbackIndex = 0;
+
+        QString msg = QString("OUT OF REACH!\nPoint #%1 physically breaks a Joint Limit (J5 > 120°).\nPlease move the User Frame closer or rotate the part!").arg(failedPointIndex);
+        emit systemErrorTriggered(msg);
+        emit programFinished();
+        return;
+    }
+
+    pathvec.insert(pathvec.begin(), { current_user_tcp.p.x(), current_user_tcp.p.y(), current_user_tcp.p.z() });
+
+    scurve trajectoryPlanner;
+    double maxVel = 200.0 * (m_autoRunSpeedPercent / 100.0);
+    if (maxVel < 5.0) maxVel = 5.0;
+
+    m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
+
+    // ====================================================================
+    // 🚀 NEW: CSV FORMATTING (CAD POINTS ALIGNED TO S-CURVE ROWS)
+    // ====================================================================
+    QString exportPath = "/home/texsonics/Videos/full_robot_trajectory.csv";
+    QFile exportFile(exportPath);
+
+    if (exportFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        QTextStream out(&exportFile);
+
+        // 1. Write the Header (Removed MATCH_MARKER column entirely)
+        out << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz,"
+            << "-------,"
+            << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz,"
+            << "-------,"
+            << "J1,J2,J3,J4,J5,J6,"
+            << "-------,"
+            << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
+
+        KDL::JntArray step_joints = KDLJointCur; // Seed the IK solver
+
+        double cad_rx, cad_ry, cad_rz;
+        RobotMath::getUnifiedEulerDegrees(g_drawingRotation, cad_rx, cad_ry, cad_rz);
+
+        int current_cad_match_idx = 0;
+
+        // 2. Loop through every generated S-Curve point
+        for (size_t i = 0; i < m_cartesianTrajectory.size(); ++i) {
+            scurve::point pt = m_cartesianTrajectory[i];
+
+            // -----------------------------------------------------
+            // A. PREPARE EMPTY CAD STRINGS (Empty by default)
+            // -----------------------------------------------------
+            QString cad_x = "", cad_y = "", cad_z = "";
+            QString cad_rx_str = "", cad_ry_str = "", cad_rz_str = "";
+
+            if (current_cad_match_idx < pathvec.size()) {
+                double dx = pt.x - pathvec[current_cad_match_idx].x;
+                double dy = pt.y - pathvec[current_cad_match_idx].y;
+                double dz = pt.z - pathvec[current_cad_match_idx].z;
+                double distance = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+                // If S-Curve point hit the target CAD node, fill in the strings!
+                if (distance < 0.05) {
+                    cad_x = QString::number(pathvec[current_cad_match_idx].x, 'f', 5);
+                    cad_y = QString::number(pathvec[current_cad_match_idx].y, 'f', 5);
+                    cad_z = QString::number(pathvec[current_cad_match_idx].z, 'f', 5);
+                    cad_rx_str = QString::number(cad_rx, 'f', 5);
+                    cad_ry_str = QString::number(cad_ry, 'f', 5);
+                    cad_rz_str = QString::number(cad_rz, 'f', 5);
+
+                    current_cad_match_idx++; // Move to the next target node
+                }
+            }
+
+            // -----------------------------------------------------
+            // B. TARGET S-CURVE TCP
+            // -----------------------------------------------------
+            KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pt.x, pt.y, pt.z));
+            KDL::Frame target_tcp_base = m_userFrame * local_tcp;
+            KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
+
+            double target_rx, target_ry, target_rz;
+            RobotMath::getUnifiedEulerDegrees(local_tcp.M, target_rx, target_ry, target_rz);
+
+            // -----------------------------------------------------
+            // C. IK CALCULATION (J1 to J6)
+            // -----------------------------------------------------
+            KDL::JntArray out_joints(6);
+            if (iksolver.CartToJnt(step_joints, target_flange_base, out_joints) >= 0) {
+                step_joints = out_joints;
+            }
+
+            double j1_deg = out_joints(0) * (180.0 / M_PI);
+            double j2_deg = out_joints(1) * (180.0 / M_PI);
+            double j3_deg = out_joints(2) * (180.0 / M_PI);
+            double j4_deg = out_joints(3) * (180.0 / M_PI);
+            double j5_deg = out_joints(4) * (180.0 / M_PI);
+            double j6_deg = out_joints(5) * (180.0 / M_PI);
+
+            // -----------------------------------------------------
+            // D. FK CALCULATION (Actual Output)
+            // -----------------------------------------------------
+            KDL::Frame fk_flange_base;
+            fksolver.JntToCart(out_joints, fk_flange_base);
+
+            KDL::Frame fk_tcp_base = fk_flange_base * m_toolFrame;
+            KDL::Frame fk_tcp_user = m_userFrame.Inverse() * fk_tcp_base;
+
+            double fk_rx, fk_ry, fk_rz;
+            RobotMath::getUnifiedEulerDegrees(fk_tcp_user.M, fk_rx, fk_ry, fk_rz);
+
+            // -----------------------------------------------------
+            // E. WRITE PERFECTLY ORGANIZED ROW TO CSV
+            // -----------------------------------------------------
+            out << cad_x << "," << cad_y << "," << cad_z << ","
+                << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << ","
+                << " ," // Separator
+                << pt.x << "," << pt.y << "," << pt.z << ","
+                << target_rx << "," << target_ry << "," << target_rz << ","
+                << " ," // Separator
+                << j1_deg << "," << j2_deg << "," << j3_deg << ","
+                << j4_deg << "," << j5_deg << "," << j6_deg << ","
+                << " ," // Separator
+                << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
+                << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
+        }
+        exportFile.close();
+        qDebug() << "✅ Trajectory Exported to CSV Perfectly Aligned: " << exportPath;
+    } else {
+        qDebug() << "❌ Failed to open CSV file for writing!";
+    }
+    // ====================================================================
+
+    m_isCartesianPlayback = true;
+    m_playbackIndex = 0;
+    m_playbackTimer->start(16);
+}
