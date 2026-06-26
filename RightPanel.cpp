@@ -230,6 +230,7 @@ QWidget* RightPanel::buildDxfFileWidget()
     QPushButton* btnSetEnd = new QPushButton("🛑 SET END");
     btnSetEnd->setStyleSheet("QPushButton { background-color:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px; } QPushButton:hover { background-color:#DC2626; }");
 
+
     // 🚀 NEW: Text Box for End XYZ
     QLineEdit* txtEndXyz = new QLineEdit();
     txtEndXyz->setPlaceholderText("X: --- | Y: --- | Z: ---");
