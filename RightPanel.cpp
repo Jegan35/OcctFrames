@@ -945,7 +945,7 @@ QWidget* RightPanel::buildToolWidget()
     QLineEdit *txtY = new QLineEdit(); txtY->setStyleSheet(readStyle); txtY->setReadOnly(true);
     QLineEdit *txtZ = new QLineEdit(); txtZ->setStyleSheet(readStyle); txtZ->setReadOnly(true);
 
-    QLabel *lblFrameInfo = new QLabel("STATIC TOOL FRAME (Physical Dimensions)");
+    QLabel *lblFrameInfo = new QLabel("STATIC TOOL FRAME (Dimensions)");
     lblFrameInfo->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px;");
     eLay->addWidget(lblFrameInfo, 1, 0, 1, 6);
 
@@ -958,7 +958,7 @@ QWidget* RightPanel::buildToolWidget()
     QLineEdit *txtOY = new QLineEdit(); txtOY->setStyleSheet(readStyle); txtOY->setReadOnly(true);
     QLineEdit *txtOZ = new QLineEdit(); txtOZ->setStyleSheet(readStyle); txtOZ->setReadOnly(true);
 
-    QLabel *lblOffsetInfo = new QLabel("LIVE RUNTIME OFFSET (Tuning / Wear Compensation)");
+    QLabel *lblOffsetInfo = new QLabel("TOOL OFFSET ");
     lblOffsetInfo->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px;");
     eLay->addWidget(lblOffsetInfo, 3, 0, 1, 6);
 
@@ -977,7 +977,7 @@ QWidget* RightPanel::buildToolWidget()
     QLineEdit *txtPZ = new QLineEdit(); txtPZ->setStyleSheet(readStyle); txtPZ->setReadOnly(true);
 
 
-    QLabel *lblPathInfo = new QLabel("PATH MODIFIER (Contour Expansion & Z Hover)");
+    QLabel *lblPathInfo = new QLabel("PATH OFFSET");
     lblPathInfo->setStyleSheet("color:#00E5FF; font-weight:bold; font-size:11px;");
     eLay->addWidget(lblPathInfo, 5, 0, 1, 6);
 
