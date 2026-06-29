@@ -607,7 +607,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         return;
     }
 
-   // pathvec.insert(pathvec.begin(), { current_user_tcp.p.x(), current_user_tcp.p.y(), current_user_tcp.p.z() });
+    pathvec.insert(pathvec.begin(), { current_user_tcp.p.x(), current_user_tcp.p.y(), current_user_tcp.p.z() });
 
     scurve trajectoryPlanner;
     double maxVel = 200.0 * (m_autoRunSpeedPercent / 100.0);
@@ -644,11 +644,6 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         for (size_t i = 0; i < m_cartesianTrajectory.size(); ++i) {
             scurve::point pt = m_cartesianTrajectory[i];
 
-            // =====================================================
-            // 🚀 ADD THIS LINE TO PRINT S-CURVE POINTS TO TERMINAL
-            // =====================================================
-            qDebug() << "S-Curve Pt [" << i << "] -> X:" << pt.x << " Y:" << pt.y << " Z:" << pt.z;
-
             // -----------------------------------------------------
             // A. PREPARE EMPTY CAD STRINGS (Empty by default)
             // -----------------------------------------------------
@@ -673,6 +668,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                     current_cad_match_idx++; // Move to the next target node
                 }
             }
+
             // -----------------------------------------------------
             // B. TARGET S-CURVE TCP
             // -----------------------------------------------------
