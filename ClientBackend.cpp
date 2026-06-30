@@ -480,7 +480,19 @@ void ClientBackend::playbackTick()
     updateUIWithUserFrame();
 }
 
+void ClientBackend::setPathOffset(double px, double py, double pz)
+{
+    m_pathOffsetX = px;
+    m_pathOffsetY = py;
+    m_pathOffsetZ = pz;
+}
 
+void ClientBackend::setLiveRuntimeOffset(double ox, double oy, double oz)
+{
+    m_liveOffsetX = ox;
+    m_liveOffsetY = oy;
+    m_liveOffsetZ = oz;
+}
 
 void ClientBackend::runDxfProgram(const QString &csvData)
 {
@@ -616,22 +628,40 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
 
     // ====================================================================
-    // 🚀 NEW: CSV FORMATTING (CAD POINTS ALIGNED TO S-CURVE ROWS)
+    // 🚀 NEW: 5 CSV EXPORT FORMATTING (Full, CAD, SCurve, IK, FK)
     // ====================================================================
-    QString exportPath = "/home/texsonics/Videos/full_robot_trajectory.csv";
-    QFile exportFile(exportPath);
+    QString basePath = "/home/texsonics/Videos/";
+    QFile fileFull(basePath + "full_robot_trajectory.csv");
+    QFile fileCAD(basePath + "cadpoints.csv");
+    QFile fileScurve(basePath + "scurvepoints.csv");
+    QFile fileIK(basePath + "ikvalue.csv");
+    QFile fileFK(basePath + "fkvalue.csv");
 
-    if (exportFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        QTextStream out(&exportFile);
+    if (fileFull.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text) &&
+        fileCAD.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text) &&
+        fileScurve.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text) &&
+        fileIK.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text) &&
+        fileFK.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+    {
+        QTextStream outFull(&fileFull);
+        QTextStream outCAD(&fileCAD);
+        QTextStream outScurve(&fileScurve);
+        QTextStream outIK(&fileIK);
+        QTextStream outFK(&fileFK);
 
-        // 1. Write the Header (Removed MATCH_MARKER column entirely)
-        out << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz,"
-            << "-------,"
-            << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz,"
-            << "-------,"
-            << "J1,J2,J3,J4,J5,J6,"
-            << "-------,"
-            << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
+        // 1. Write the Headers for all files
+        outFull << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz,"
+                << "-------,"
+                << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz,"
+                << "-------,"
+                << "J1,J2,J3,J4,J5,J6,"
+                << "-------,"
+                << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
+
+        outCAD << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz\n";
+        outScurve << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz\n";
+        outIK << "J1,J2,J3,J4,J5,J6\n";
+        outFK << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
 
         KDL::JntArray step_joints = KDLJointCur; // Seed the IK solver
 
@@ -664,6 +694,10 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                     cad_rx_str = QString::number(cad_rx, 'f', 5);
                     cad_ry_str = QString::number(cad_ry, 'f', 5);
                     cad_rz_str = QString::number(cad_rz, 'f', 5);
+
+                    // Write to isolated CAD file ONLY when a point is actually matched
+                    outCAD << cad_x << "," << cad_y << "," << cad_z << ","
+                           << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << "\n";
 
                     current_cad_match_idx++; // Move to the next target node
                 }
@@ -707,42 +741,46 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             RobotMath::getUnifiedEulerDegrees(fk_tcp_user.M, fk_rx, fk_ry, fk_rz);
 
             // -----------------------------------------------------
-            // E. WRITE PERFECTLY ORGANIZED ROW TO CSV
+            // E. WRITE PERFECTLY ORGANIZED ROWS TO ALL CSV FILES
             // -----------------------------------------------------
-            out << cad_x << "," << cad_y << "," << cad_z << ","
-                << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << ","
-                << " ," // Separator
-                << pt.x << "," << pt.y << "," << pt.z << ","
-                << target_rx << "," << target_ry << "," << target_rz << ","
-                << " ," // Separator
-                << j1_deg << "," << j2_deg << "," << j3_deg << ","
-                << j4_deg << "," << j5_deg << "," << j6_deg << ","
-                << " ," // Separator
-                << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
-                << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
-        }
-        exportFile.close();
-        qDebug() << "✅ Trajectory Exported to CSV Perfectly Aligned: " << exportPath;
-    } else {
-        qDebug() << "❌ Failed to open CSV file for writing!";
-    }
-    // ====================================================================
 
+            // Full Master File
+            outFull << cad_x << "," << cad_y << "," << cad_z << ","
+                    << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << ","
+                    << " ," // Separator
+                    << pt.x << "," << pt.y << "," << pt.z << ","
+                    << target_rx << "," << target_ry << "," << target_rz << ","
+                    << " ," // Separator
+                    << j1_deg << "," << j2_deg << "," << j3_deg << ","
+                    << j4_deg << "," << j5_deg << "," << j6_deg << ","
+                    << " ," // Separator
+                    << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
+                    << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
+
+            // S-Curve File
+            outScurve << pt.x << "," << pt.y << "," << pt.z << ","
+                      << target_rx << "," << target_ry << "," << target_rz << "\n";
+
+            // IK Values File
+            outIK << j1_deg << "," << j2_deg << "," << j3_deg << ","
+                  << j4_deg << "," << j5_deg << "," << j6_deg << "\n";
+
+            // FK Values File
+            outFK << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
+                  << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
+        }
+
+        fileFull.close();
+        fileCAD.close();
+        fileScurve.close();
+        fileIK.close();
+        fileFK.close();
+
+        qDebug() << "✅ 5 Trajectory Files Exported Successfully to: " << basePath;
+    } else {
+        qDebug() << "❌ Failed to open one or more CSV files for writing!";
+    }
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
-}
-
-void ClientBackend::setPathOffset(double px, double py, double pz)
-{
-    m_pathOffsetX = px;
-    m_pathOffsetY = py;
-    m_pathOffsetZ = pz;
-}
-
-void ClientBackend::setLiveRuntimeOffset(double ox, double oy, double oz)
-{
-    m_liveOffsetX = ox;
-    m_liveOffsetY = oy;
-    m_liveOffsetZ = oz;
 }
