@@ -281,7 +281,6 @@ QWidget* RightPanel::buildDxfFileWidget()
 
 
     // --- ROW 2: Action Buttons ---
-    // --- ROW 2: Action Buttons ---
     QHBoxLayout *row2 = new QHBoxLayout();
 
     m_btnGetPoints = new QPushButton("📍 GET POINTS");
@@ -291,7 +290,12 @@ QWidget* RightPanel::buildDxfFileWidget()
     QPushButton *btnFullShape = new QPushButton("🌟 FULL SHAPE");
     btnFullShape->setStyleSheet("QPushButton { background-color:#8B5CF6; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#7C3AED; }");
 
-    // 🚀 NEW: The Load Text File Button
+    // 🚀 NEW: THE FILE TYPE SELECTOR COMBOBOX
+    QComboBox *cmbLoadMode = new QComboBox();
+    cmbLoadMode->addItems({"CAD Points", "S-Curve Points", "IK Degrees"});
+    cmbLoadMode->setStyleSheet("QComboBox { background-color:#1a1e2a; color:#FFFFFF; border:1px solid #3B82F6; padding:8px; border-radius:4px; font-weight:bold; font-size:12px; } QComboBox::drop-down { border:none; width:20px; } QComboBox QAbstractItemView { background-color:#0a0d14; color:#FFFFFF; border:1px solid #3B82F6; selection-background-color:#3B82F6; outline:none; }");
+
+    // 🚀 The Load Text File Button
     QPushButton *btnLoadTxt = new QPushButton("📂 LOAD PATH");
     btnLoadTxt->setStyleSheet("QPushButton { background-color:#3B82F6; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#2563EB; }");
 
@@ -301,7 +305,8 @@ QWidget* RightPanel::buildDxfFileWidget()
 
     row2->addWidget(m_btnGetPoints, 1);
     row2->addWidget(btnFullShape, 1);
-    row2->addWidget(btnLoadTxt, 1); // <--- Added the new button here!
+    row2->addWidget(cmbLoadMode, 1); // <--- Added the new combobox here!
+    row2->addWidget(btnLoadTxt, 1);
     row2->addWidget(btnRunDxf, 1);
     ctrlLayout->addLayout(row2);
 
@@ -364,7 +369,7 @@ QWidget* RightPanel::buildDxfFileWidget()
     // =================================================================
 
     // 1. LOAD TXT FILE LOGIC
-    connect(btnLoadTxt, &QPushButton::clicked, this, [this]() {
+    connect(btnLoadTxt, &QPushButton::clicked, this, [this, cmbLoadMode]() {
         QString filePath = QFileDialog::getOpenFileName(this, "Select Extracted Path File", "", "Text/CSV Files (*.txt *.csv);;All Files (*.*)");
         if (filePath.isEmpty()) return;
         QFile file(filePath);
@@ -380,6 +385,10 @@ QWidget* RightPanel::buildDxfFileWidget()
             QMessageBox::warning(this, "Empty File", "The selected file contains no data.");
             return;
         }
+
+        // 🚀 Save the selected mode to the text widget properties!
+        m_txtCoordinates->setProperty("runMode", cmbLoadMode->currentText());
+
         // Force the UI & Data to sync perfectly
         if (m_dxfPreviewWidget) emit m_dxfPreviewWidget->coordinatesExtracted(fileData);
     });
@@ -409,16 +418,22 @@ QWidget* RightPanel::buildDxfFileWidget()
     // =================================================================
     // 🚀 THE FIX: 0.1 SECOND THREADING (OPTIMIZED LOGIC & STRINGS)
     // =================================================================
+    // =================================================================
+    // 🚀 THE FIX: UNIFIED THREADING FOR CAD, S-CURVE, AND IK DEGREES
+    // =================================================================
     connect(m_dxfPreviewWidget, &OcctWidget::coordinatesExtracted, this, [this](const QString &data){
 
         m_txtCoordinates->setProperty("rawCsvData", data);
+
+        QString mode = m_txtCoordinates->property("runMode").toString();
+        if (mode.isEmpty()) mode = "CAD Points";
 
         if (data.isEmpty()) {
             m_txtCoordinates->setHtml("");
             return;
         }
 
-        m_txtCoordinates->setHtml("<b style='color:#F59E0B; font-size:14px;'>⚙️ Initializing Kinematics Thread...</b>");
+        m_txtCoordinates->setHtml(QString("<b style='color:#F59E0B; font-size:14px;'>⚙️ Processing %1...</b>").arg(mode));
 
         QStringList lines = data.split('\n', Qt::SkipEmptyParts);
 
@@ -445,98 +460,139 @@ QWidget* RightPanel::buildDxfFileWidget()
             watcher->deleteLater();
         });
 
-        // 3. RUN HEAVY MATH IN BACKGROUND THREAD
-        QFuture<QString> future = QtConcurrent::run([lines, uFrame, tFrame, startJoints, txtUI]() -> QString {
+        // 3. RUN RENDERING / MATH IN BACKGROUND THREAD
+        QFuture<QString> future = QtConcurrent::run([lines, uFrame, tFrame, startJoints, txtUI, mode]() -> QString {
 
             int totalLines = lines.size();
-
             QString resultHtml;
             resultHtml.reserve((totalLines * 200) + 500);
-
             resultHtml.append("<pre style='font-family: monospace; font-size: 11px;'>");
-            resultHtml.append("<span style='color: #00E5FF;'>X       Y       Z       Rx      Ry      Rz      </span>");
-            resultHtml.append("<span style='color: #F59E0B;'>J1      J2      J3      J4      J5      J6      </span>\n");
-            resultHtml.append("<span style='color: #30363d;'>---------------------------------------------------------------------------------------------</span>\n");
 
-            KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
-            KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
-            KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 70, 1e-4);
+            // =====================================================
+            // 🚀 MODE: IK DEGREES (Show J1 to J6)
+            // =====================================================
+            if (mode == "IK Degrees") {
+                resultHtml.append("<span style='color: #A3E635;'>J1      J2      J3      J4      J5      J6      </span>\n");
+                resultHtml.append("<span style='color: #30363d;'>------------------------------------------------</span>\n");
 
-            KDL::JntArray temp_joints = startJoints;
+                for (int i = 0; i < totalLines; ++i) {
+                    QString line = lines[i].trimmed();
+                    if (line.startsWith("---") || line.startsWith("J1")) continue; // Skip headers
 
-            std::vector<KDL::JntArray> seeds;
-            double j0_opts[] = {0.0, M_PI/2, -M_PI/2};
-            double j2_opts[] = {0.0, M_PI/4, -M_PI/4};
-            double j4_opts[] = {0.0, M_PI/2, -M_PI/2};
-            for(double j0 : j0_opts) {
-                for(double j2 : j2_opts) {
-                    for(double j4 : j4_opts) {
-                        KDL::JntArray s(6);
-                        s(0)=j0; s(1)=0.0; s(2)=j2; s(3)=0.0; s(4)=j4; s(5)=0.0;
-                        seeds.push_back(s);
+                    QStringList p = line.split(',');
+                    if (p.size() >= 6) {
+                        QString cStr = QString::asprintf("<span style='color:#FFFFFF;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f </span>\n",
+                                                         p[0].toDouble(), p[1].toDouble(), p[2].toDouble(),
+                                                         p[3].toDouble(), p[4].toDouble(), p[5].toDouble());
+                        resultHtml.append(cStr);
                     }
                 }
             }
+            // =====================================================
+            // 🚀 MODE: S-CURVE POINTS (Show XYZ and RxRyRz)
+            // =====================================================
+            else if (mode == "S-Curve Points") {
+                resultHtml.append("<span style='color: #3B82F6;'>X       Y       Z       Rx      Ry      Rz      </span>\n");
+                resultHtml.append("<span style='color: #30363d;'>------------------------------------------------</span>\n");
 
-            int lastReportedPct = -1;
-            bool foundInitialSeed = false; // 🚀 ONLY run heavy seeds for the starting point!
+                for (int i = 0; i < totalLines; ++i) {
+                    QString line = lines[i].trimmed();
+                    if (line.startsWith("---") || line.startsWith("SCURVE")) continue; // Skip headers
 
-            for (int i = 0; i < totalLines; ++i) {
-                QStringList p = lines[i].split(',');
-                if (p.size() >= 6) {
-                    double x = p[0].toDouble(); double y = p[1].toDouble(); double z = p[2].toDouble();
-                    double rx = p[3].toDouble(); double ry = p[4].toDouble(); double rz = p[5].toDouble();
-
-                    KDL::Rotation rot = KDL::Rotation::EulerZYX(rz * (M_PI/180.0), ry * (M_PI/180.0), rx * (M_PI/180.0));
-                    KDL::Frame local_tcp(rot, KDL::Vector(x, y, z));
-                    KDL::Frame target_flange_base = (uFrame * local_tcp) * tFrame.Inverse();
-
-                    KDL::JntArray out_joints(6);
-                    bool ik_success = false;
-
-                    // 1. Always try the fast path first
-                    if (iksolver.CartToJnt(temp_joints, target_flange_base, out_joints) >= 0) {
-                        ik_success = true;
-                        foundInitialSeed = true;
+                    QStringList p = line.split(',');
+                    if (p.size() >= 6) {
+                        QString cStr = QString::asprintf("<span style='color:#FFFFFF;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f </span>\n",
+                                                         p[0].toDouble(), p[1].toDouble(), p[2].toDouble(),
+                                                         p[3].toDouble(), p[4].toDouble(), p[5].toDouble());
+                        resultHtml.append(cStr);
                     }
-                    // 2. If it fails, ONLY try the 27 seeds if we haven't found the start of the path yet
-                    else if (!foundInitialSeed) {
-                        for (const auto& seed : seeds) {
-                            if (iksolver.CartToJnt(seed, target_flange_base, out_joints) >= 0) {
-                                ik_success = true;
-                                foundInitialSeed = true;
-                                break;
-                            }
+                }
+            }
+            // =====================================================
+            // 🚀 MODE: CAD POINTS (Calculate IK on the fly)
+            // =====================================================
+            else {
+                resultHtml.append("<span style='color: #00E5FF;'>X       Y       Z       Rx      Ry      Rz      </span>");
+                resultHtml.append("<span style='color: #F59E0B;'>J1      J2      J3      J4      J5      J6      </span>\n");
+                resultHtml.append("<span style='color: #30363d;'>---------------------------------------------------------------------------------------------</span>\n");
+
+                KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
+                KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
+                KDL::ChainIkSolverPos_NR_JL iksolver(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 70, 1e-4);
+
+                KDL::JntArray temp_joints = startJoints;
+
+                std::vector<KDL::JntArray> seeds;
+                double j0_opts[] = {0.0, M_PI/2, -M_PI/2};
+                double j2_opts[] = {0.0, M_PI/4, -M_PI/4};
+                double j4_opts[] = {0.0, M_PI/2, -M_PI/2};
+                for(double j0 : j0_opts) {
+                    for(double j2 : j2_opts) {
+                        for(double j4 : j4_opts) {
+                            KDL::JntArray s(6);
+                            s(0)=j0; s(1)=0.0; s(2)=j2; s(3)=0.0; s(4)=j4; s(5)=0.0;
+                            seeds.push_back(s);
                         }
                     }
-
-                    // 🚀 THE BUG FIX: asprintf must assign the returned string!
-                    QString cStr = QString::asprintf("<span style='color:#FFFFFF;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f </span>",
-                                                     x, y, z, rx, ry, rz);
-                    resultHtml.append(cStr);
-
-                    QString jStr;
-                    if (ik_success) {
-                        double j1 = out_joints(0)*(180.0/M_PI), j2 = out_joints(1)*(180.0/M_PI), j3 = out_joints(2)*(180.0/M_PI);
-                        double j4 = out_joints(3)*(180.0/M_PI), j5 = out_joints(4)*(180.0/M_PI), j6 = out_joints(5)*(180.0/M_PI);
-                        jStr = QString::asprintf("<span style='color:#A3E635;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f</span>\n",
-                                                 j1, j2, j3, j4, j5, j6);
-                        temp_joints = out_joints;
-                    } else {
-                        double j1 = temp_joints(0)*(180.0/M_PI), j2 = temp_joints(1)*(180.0/M_PI), j3 = temp_joints(2)*(180.0/M_PI);
-                        double j4 = temp_joints(3)*(180.0/M_PI), j5 = temp_joints(4)*(180.0/M_PI), j6 = temp_joints(5)*(180.0/M_PI);
-                        jStr = QString::asprintf("<span style='color:#EF4444;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f (Limit Hit)</span>\n",
-                                                 j1, j2, j3, j4, j5, j6);
-                    }
-                    resultHtml.append(jStr);
                 }
 
-                int pct = (i * 100) / totalLines;
-                if (pct != lastReportedPct && pct % 10 == 0) {
-                    lastReportedPct = pct;
-                    if (txtUI) {
-                        QString msg = QString("<b style='color:#F59E0B; font-size:14px;'>⚙️ Thread Computing IK... %1%</b>").arg(pct);
-                        QMetaObject::invokeMethod(txtUI.data(), "setHtml", Qt::QueuedConnection, Q_ARG(QString, msg));
+                int lastReportedPct = -1;
+                bool foundInitialSeed = false;
+
+                for (int i = 0; i < totalLines; ++i) {
+                    QStringList p = lines[i].split(',');
+                    if (p.size() >= 6) {
+                        double x = p[0].toDouble(); double y = p[1].toDouble(); double z = p[2].toDouble();
+                        double rx = p[3].toDouble(); double ry = p[4].toDouble(); double rz = p[5].toDouble();
+
+                        KDL::Rotation rot = KDL::Rotation::EulerZYX(rz * (M_PI/180.0), ry * (M_PI/180.0), rx * (M_PI/180.0));
+                        KDL::Frame local_tcp(rot, KDL::Vector(x, y, z));
+                        KDL::Frame target_flange_base = (uFrame * local_tcp) * tFrame.Inverse();
+
+                        KDL::JntArray out_joints(6);
+                        bool ik_success = false;
+
+                        if (iksolver.CartToJnt(temp_joints, target_flange_base, out_joints) >= 0) {
+                            ik_success = true;
+                            foundInitialSeed = true;
+                        }
+                        else if (!foundInitialSeed) {
+                            for (const auto& seed : seeds) {
+                                if (iksolver.CartToJnt(seed, target_flange_base, out_joints) >= 0) {
+                                    ik_success = true;
+                                    foundInitialSeed = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        QString cStr = QString::asprintf("<span style='color:#FFFFFF;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f </span>",
+                                                         x, y, z, rx, ry, rz);
+                        resultHtml.append(cStr);
+
+                        QString jStr;
+                        if (ik_success) {
+                            double j1 = out_joints(0)*(180.0/M_PI), j2 = out_joints(1)*(180.0/M_PI), j3 = out_joints(2)*(180.0/M_PI);
+                            double j4 = out_joints(3)*(180.0/M_PI), j5 = out_joints(4)*(180.0/M_PI), j6 = out_joints(5)*(180.0/M_PI);
+                            jStr = QString::asprintf("<span style='color:#A3E635;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f</span>\n",
+                                                     j1, j2, j3, j4, j5, j6);
+                            temp_joints = out_joints;
+                        } else {
+                            double j1 = temp_joints(0)*(180.0/M_PI), j2 = temp_joints(1)*(180.0/M_PI), j3 = temp_joints(2)*(180.0/M_PI);
+                            double j4 = temp_joints(3)*(180.0/M_PI), j5 = temp_joints(4)*(180.0/M_PI), j6 = temp_joints(5)*(180.0/M_PI);
+                            jStr = QString::asprintf("<span style='color:#EF4444;'>%-7.2f %-7.2f %-7.2f %-7.2f %-7.2f %-7.2f (Limit)</span>\n",
+                                                     j1, j2, j3, j4, j5, j6);
+                        }
+                        resultHtml.append(jStr);
+                    }
+
+                    int pct = (i * 100) / totalLines;
+                    if (pct != lastReportedPct && pct % 10 == 0) {
+                        lastReportedPct = pct;
+                        if (txtUI) {
+                            QString msg = QString("<b style='color:#F59E0B; font-size:14px;'>⚙️ Thread Computing IK... %1%</b>").arg(pct);
+                            QMetaObject::invokeMethod(txtUI.data(), "setHtml", Qt::QueuedConnection, Q_ARG(QString, msg));
+                        }
                     }
                 }
             }
@@ -553,6 +609,9 @@ QWidget* RightPanel::buildDxfFileWidget()
         bool isRunning = btnRunDxf->property("isRunning").toBool();
         if (!isRunning) {
             QString csvData = m_txtCoordinates->property("rawCsvData").toString();
+            QString mode = m_txtCoordinates->property("runMode").toString();
+            if (mode.isEmpty()) mode = "CAD Points";
+
             if (csvData.isEmpty() || csvData.contains("Extracted XYZ")) return;
 
             btnRunDxf->setText("⏹ STOP");
@@ -560,7 +619,7 @@ QWidget* RightPanel::buildDxfFileWidget()
             btnRunDxf->setProperty("isRunning", true);
             QApplication::processEvents();
 
-            if (m_backend) m_backend->runDxfProgram(csvData);
+            if (m_backend) m_backend->runDxfProgram(csvData, mode); // 🚀 PASS THE MODE!
         } else {
             btnRunDxf->setProperty("isRunning", false);
             if (m_backend) m_backend->stopDxfProgram();
@@ -575,7 +634,10 @@ QWidget* RightPanel::buildDxfFileWidget()
         connect(m_backend, &ClientBackend::programFinished, this, [this, btnRunDxf]() {
             if (btnRunDxf->property("isRunning").toBool()) {
                 QString csvData = m_txtCoordinates->property("rawCsvData").toString();
-                if (m_backend) m_backend->runDxfProgram(csvData);
+                QString mode = m_txtCoordinates->property("runMode").toString();
+                if (mode.isEmpty()) mode = "CAD Points";
+
+                if (m_backend) m_backend->runDxfProgram(csvData, mode); // 🚀 PASS THE MODE!
             } else {
                 btnRunDxf->setText("▶ RUN");
                 btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");

@@ -40,7 +40,7 @@ public slots:
     void setJointSpeed(double degs);
     void setMmIncrement(const QString &val);
     void setDegIncrement(const QString &val);
-    void runDxfProgram(const QString &csvData);
+    void runDxfProgram(const QString &csvData, const QString &mode = "CAD Points");
     void stopDxfProgram();
     void setAutoRunSpeed(int percent) { m_autoRunSpeedPercent = percent; }
 

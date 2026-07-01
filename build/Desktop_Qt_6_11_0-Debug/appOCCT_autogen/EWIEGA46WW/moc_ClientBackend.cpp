@@ -72,6 +72,7 @@ template <> constexpr inline auto ClientBackend::qt_create_metaobjectdata<qt_met
         "setDegIncrement",
         "runDxfProgram",
         "csvData",
+        "mode",
         "stopDxfProgram",
         "setAutoRunSpeed",
         "jogTick",
@@ -131,19 +132,23 @@ template <> constexpr inline auto ClientBackend::qt_create_metaobjectdata<qt_met
             { QMetaType::QString, 30 },
         }}),
         // Slot 'runDxfProgram'
-        QtMocHelpers::SlotData<void(const QString &)>(32, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(const QString &, const QString &)>(32, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 33 }, { QMetaType::QString, 34 },
+        }}),
+        // Slot 'runDxfProgram'
+        QtMocHelpers::SlotData<void(const QString &)>(32, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void, {{
             { QMetaType::QString, 33 },
         }}),
         // Slot 'stopDxfProgram'
-        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(35, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'setAutoRunSpeed'
-        QtMocHelpers::SlotData<void(int)>(35, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(int)>(36, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Int, 24 },
         }}),
         // Slot 'jogTick'
-        QtMocHelpers::SlotData<void()>(36, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'executeStepJog'
         QtMocHelpers::SlotData<void()>(37, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'executeStepJog'
+        QtMocHelpers::SlotData<void()>(38, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -182,11 +187,12 @@ void ClientBackend::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
         case 12: _t->setJointSpeed((*reinterpret_cast<std::add_pointer_t<double>>(_a[1]))); break;
         case 13: _t->setMmIncrement((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         case 14: _t->setDegIncrement((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 15: _t->runDxfProgram((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 16: _t->stopDxfProgram(); break;
-        case 17: _t->setAutoRunSpeed((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 18: _t->jogTick(); break;
-        case 19: _t->executeStepJog(); break;
+        case 15: _t->runDxfProgram((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 16: _t->runDxfProgram((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 17: _t->stopDxfProgram(); break;
+        case 18: _t->setAutoRunSpeed((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 19: _t->jogTick(); break;
+        case 20: _t->executeStepJog(); break;
         default: ;
         }
     }
@@ -223,14 +229,14 @@ int ClientBackend::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 20)
+        if (_id < 21)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 20;
+        _id -= 21;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 20)
+        if (_id < 21)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 20;
+        _id -= 21;
     }
     return _id;
 }

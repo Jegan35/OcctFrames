@@ -494,16 +494,95 @@ void ClientBackend::setLiveRuntimeOffset(double ox, double oy, double oz)
     m_liveOffsetZ = oz;
 }
 
-void ClientBackend::runDxfProgram(const QString &csvData)
+void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
 {
     QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
+
+    // ====================================================================
+    // 🚀 MODE 3: DIRECT IK DEGREES PLAYBACK (Bypass everything)
+    // ====================================================================
+    if (mode == "IK Degrees") {
+        m_localJointTrajectory.clear();
+        for (const QString& line : lines) {
+            QString temp = line.trimmed();
+            // Ignore CSV headers and dividers
+            if (temp.startsWith("---") || temp.startsWith("J1") || temp.isEmpty()) continue;
+
+            QStringList parts = temp.split(',');
+            if (parts.size() >= 6) {
+                JointPoint jp;
+                jp.j1 = parts[0].toDouble(); jp.j2 = parts[1].toDouble(); jp.j3 = parts[2].toDouble();
+                jp.j4 = parts[3].toDouble(); jp.j5 = parts[4].toDouble(); jp.j6 = parts[5].toDouble();
+                m_localJointTrajectory.append(jp);
+            }
+        }
+
+        if (m_localJointTrajectory.isEmpty()) return;
+
+        m_isCartesianPlayback = false; // Forces it to use Joint Playback Engine
+        m_playbackIndex = 0;
+        m_playbackTimer->start(16);
+        return;
+    }
+
+    // ====================================================================
+    // 🚀 MODE 2: S-CURVE POINTS BYPASS (Live IK Cartesian playback)
+    // ====================================================================
+    if (mode == "S-Curve Points") {
+        m_cartesianTrajectory.clear();
+        bool rotationSet = false;
+
+        for (const QString& line : lines) {
+            QString temp = line.trimmed();
+            // Ignore CSV headers and dividers
+            if (temp.startsWith("---") || temp.startsWith("SCURVE") || temp.isEmpty()) continue;
+
+            QStringList parts = temp.split(',');
+            if (parts.size() >= 3) {
+                scurve::point pt;
+                pt.x = parts[0].toDouble(); pt.y = parts[1].toDouble(); pt.z = parts[2].toDouble();
+                m_cartesianTrajectory.push_back(pt);
+
+                if (parts.size() >= 6 && !rotationSet) {
+                    double rx = parts[3].toDouble() * (M_PI / 180.0);
+                    double ry = parts[4].toDouble() * (M_PI / 180.0);
+                    double rz = parts[5].toDouble() * (M_PI / 180.0);
+
+                    KDL::Rotation rawRot = KDL::Rotation::EulerZYX(rz, ry, rx);
+
+                    // 🚀 THE FIX: Rotate around the local X-axis (The Tool's Forward Axis)
+                    // This untwists J6 by 180 degrees without pointing the tool away from the part!
+                    g_drawingRotation = rawRot * KDL::Rotation::RotX(M_PI);
+
+                    rotationSet = true;
+                }
+            }
+        }
+
+        if (m_cartesianTrajectory.empty()) return;
+
+        if (!rotationSet) {
+            KDL::Frame current_tcp_base = cart * m_toolFrame;
+            KDL::Frame current_user_tcp = m_userFrame.Inverse() * current_tcp_base;
+            g_drawingRotation = current_user_tcp.M;
+        }
+
+        m_isCartesianPlayback = true;
+        m_playbackIndex = 0;
+        m_playbackTimer->start(16);
+        return;
+    }
+
+    // ====================================================================
+    // 🚀 MODE 1: STANDARD CAD POINTS (Full S-Curve, 5-File Export & Math)
+    // ====================================================================
     std::vector<scurve::point> pathvec;
     bool rotationSet = false;
 
     // 🚀 FIX: Correct coordinates and RESTORE the 180 Flip!
     for (int i = 0; i < lines.size(); i++) {
         QString line = lines[i].trimmed();
-        if (line.startsWith("---") || line.isEmpty()) continue;
+        if (line.startsWith("---") || line.startsWith("CAD") || line.isEmpty()) continue;
 
         QStringList parts = line.split(',');
         if (parts.size() >= 3) {
@@ -511,9 +590,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             double occt_y = parts[1].toDouble();
             double occt_z = parts[2].toDouble();
 
-            // =========================================================
-            // 🚀 1. RADIAL EXPANSION (Path Offset - Star Expand)
-            // =========================================================
+            // 1. RADIAL EXPANSION
             if (m_pathOffsetX != 0.0) {
                 double r = std::sqrt(occt_x * occt_x + occt_y * occt_y);
                 if (r > 0.001) {
@@ -524,9 +601,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             }
             occt_z = occt_z + m_pathOffsetZ;
 
-            // =========================================================
-            // 🚀 2. LINEAR SHIFT (Live Runtime Offset - நேர்கோட்டு நகர்வு)
-            // =========================================================
+            // 2. LINEAR SHIFT
             occt_x = occt_x + m_liveOffsetX;
             occt_y = occt_y + m_liveOffsetY;
             occt_z = occt_z + m_liveOffsetZ;
@@ -538,7 +613,12 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                 double ry = parts[4].toDouble() * (M_PI / 180.0);
                 double rz = parts[5].toDouble() * (M_PI / 180.0);
 
-                g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
+                KDL::Rotation rawRot = KDL::Rotation::EulerZYX(rz, ry, rx);
+
+                // 🚀 THE FIX: Rotate around the local X-axis (The Tool's Forward Axis)
+                // This untwists J6 by 180 degrees without pointing the tool away from the part!
+                g_drawingRotation = rawRot * KDL::Rotation::RotX(M_PI);
+
                 rotationSet = true;
             }
         }
@@ -546,7 +626,6 @@ void ClientBackend::runDxfProgram(const QString &csvData)
 
     if (pathvec.size() < 2) return;
 
-    // Get the CURRENT TCP in LOCAL User Frame coordinates!
     KDL::Frame current_tcp_base = cart * m_toolFrame;
     KDL::Frame current_user_tcp = m_userFrame.Inverse() * current_tcp_base;
 
@@ -562,7 +641,6 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     bool isReachable = true;
     int failedPointIndex = -1;
 
-    // 🚀 BUILD MULTIPLE STARTING SEEDS
     std::vector<KDL::JntArray> seeds;
     double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI, -M_PI};
     double j1_opts[] = {0.0, M_PI/4, -M_PI/4};
@@ -613,7 +691,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         m_isCartesianPlayback = false;
         m_playbackIndex = 0;
 
-        QString msg = QString("OUT OF REACH!\nPoint #%1 physically breaks a Joint Limit (J5 > 120°).\nPlease move the User Frame closer or rotate the part!").arg(failedPointIndex);
+        QString msg = QString("OUT OF REACH!\nPoint #%1 physically breaks a Joint Limit.\nPlease move the User Frame closer or rotate the part!").arg(failedPointIndex);
         emit systemErrorTriggered(msg);
         emit programFinished();
         return;
@@ -628,7 +706,7 @@ void ClientBackend::runDxfProgram(const QString &csvData)
     m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
 
     // ====================================================================
-    // 🚀 NEW: 5 CSV EXPORT FORMATTING (Full, CAD, SCurve, IK, FK)
+    // CSV EXPORT LOGIC
     // ====================================================================
     QString basePath = "/home/texsonics/Videos/";
     QFile fileFull(basePath + "full_robot_trajectory.csv");
@@ -649,13 +727,9 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         QTextStream outIK(&fileIK);
         QTextStream outFK(&fileFK);
 
-        // 1. Write the Headers for all files
-        outFull << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz,"
-                << "-------,"
-                << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz,"
-                << "-------,"
-                << "J1,J2,J3,J4,J5,J6,"
-                << "-------,"
+        outFull << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz," << "-------,"
+                << "SCURVE_X,SCURVE_Y,SCURVE_Z,SCURVE_Rx,SCURVE_Ry,SCURVE_Rz," << "-------,"
+                << "J1,J2,J3,J4,J5,J6," << "-------,"
                 << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
 
         outCAD << "CAD_X,CAD_Y,CAD_Z,CAD_Rx,CAD_Ry,CAD_Rz\n";
@@ -663,20 +737,13 @@ void ClientBackend::runDxfProgram(const QString &csvData)
         outIK << "J1,J2,J3,J4,J5,J6\n";
         outFK << "FK_X,FK_Y,FK_Z,FK_Rx,FK_Ry,FK_Rz\n";
 
-        KDL::JntArray step_joints = KDLJointCur; // Seed the IK solver
-
+        KDL::JntArray step_joints = KDLJointCur;
         double cad_rx, cad_ry, cad_rz;
         RobotMath::getUnifiedEulerDegrees(g_drawingRotation, cad_rx, cad_ry, cad_rz);
-
         int current_cad_match_idx = 0;
 
-        // 2. Loop through every generated S-Curve point
         for (size_t i = 0; i < m_cartesianTrajectory.size(); ++i) {
             scurve::point pt = m_cartesianTrajectory[i];
-
-            // -----------------------------------------------------
-            // A. PREPARE EMPTY CAD STRINGS (Empty by default)
-            // -----------------------------------------------------
             QString cad_x = "", cad_y = "", cad_z = "";
             QString cad_rx_str = "", cad_ry_str = "", cad_rz_str = "";
 
@@ -686,7 +753,6 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                 double dz = pt.z - pathvec[current_cad_match_idx].z;
                 double distance = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-                // If S-Curve point hit the target CAD node, fill in the strings!
                 if (distance < 0.05) {
                     cad_x = QString::number(pathvec[current_cad_match_idx].x, 'f', 5);
                     cad_y = QString::number(pathvec[current_cad_match_idx].y, 'f', 5);
@@ -695,17 +761,12 @@ void ClientBackend::runDxfProgram(const QString &csvData)
                     cad_ry_str = QString::number(cad_ry, 'f', 5);
                     cad_rz_str = QString::number(cad_rz, 'f', 5);
 
-                    // Write to isolated CAD file ONLY when a point is actually matched
                     outCAD << cad_x << "," << cad_y << "," << cad_z << ","
                            << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << "\n";
-
-                    current_cad_match_idx++; // Move to the next target node
+                    current_cad_match_idx++;
                 }
             }
 
-            // -----------------------------------------------------
-            // B. TARGET S-CURVE TCP
-            // -----------------------------------------------------
             KDL::Frame local_tcp(g_drawingRotation, KDL::Vector(pt.x, pt.y, pt.z));
             KDL::Frame target_tcp_base = m_userFrame * local_tcp;
             KDL::Frame target_flange_base = target_tcp_base * m_toolFrame.Inverse();
@@ -713,73 +774,33 @@ void ClientBackend::runDxfProgram(const QString &csvData)
             double target_rx, target_ry, target_rz;
             RobotMath::getUnifiedEulerDegrees(local_tcp.M, target_rx, target_ry, target_rz);
 
-            // -----------------------------------------------------
-            // C. IK CALCULATION (J1 to J6)
-            // -----------------------------------------------------
             KDL::JntArray out_joints(6);
-            if (iksolver.CartToJnt(step_joints, target_flange_base, out_joints) >= 0) {
-                step_joints = out_joints;
-            }
+            if (iksolver.CartToJnt(step_joints, target_flange_base, out_joints) >= 0) step_joints = out_joints;
 
-            double j1_deg = out_joints(0) * (180.0 / M_PI);
-            double j2_deg = out_joints(1) * (180.0 / M_PI);
-            double j3_deg = out_joints(2) * (180.0 / M_PI);
-            double j4_deg = out_joints(3) * (180.0 / M_PI);
-            double j5_deg = out_joints(4) * (180.0 / M_PI);
-            double j6_deg = out_joints(5) * (180.0 / M_PI);
+            double j1_deg = out_joints(0) * (180.0 / M_PI); double j2_deg = out_joints(1) * (180.0 / M_PI);
+            double j3_deg = out_joints(2) * (180.0 / M_PI); double j4_deg = out_joints(3) * (180.0 / M_PI);
+            double j5_deg = out_joints(4) * (180.0 / M_PI); double j6_deg = out_joints(5) * (180.0 / M_PI);
 
-            // -----------------------------------------------------
-            // D. FK CALCULATION (Actual Output)
-            // -----------------------------------------------------
             KDL::Frame fk_flange_base;
             fksolver.JntToCart(out_joints, fk_flange_base);
-
-            KDL::Frame fk_tcp_base = fk_flange_base * m_toolFrame;
-            KDL::Frame fk_tcp_user = m_userFrame.Inverse() * fk_tcp_base;
+            KDL::Frame fk_tcp_user = m_userFrame.Inverse() * (fk_flange_base * m_toolFrame);
 
             double fk_rx, fk_ry, fk_rz;
             RobotMath::getUnifiedEulerDegrees(fk_tcp_user.M, fk_rx, fk_ry, fk_rz);
 
-            // -----------------------------------------------------
-            // E. WRITE PERFECTLY ORGANIZED ROWS TO ALL CSV FILES
-            // -----------------------------------------------------
+            outFull << cad_x << "," << cad_y << "," << cad_z << "," << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << "," << " ,"
+                    << pt.x << "," << pt.y << "," << pt.z << "," << target_rx << "," << target_ry << "," << target_rz << "," << " ,"
+                    << j1_deg << "," << j2_deg << "," << j3_deg << "," << j4_deg << "," << j5_deg << "," << j6_deg << "," << " ,"
+                    << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << "," << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
 
-            // Full Master File
-            outFull << cad_x << "," << cad_y << "," << cad_z << ","
-                    << cad_rx_str << "," << cad_ry_str << "," << cad_rz_str << ","
-                    << " ," // Separator
-                    << pt.x << "," << pt.y << "," << pt.z << ","
-                    << target_rx << "," << target_ry << "," << target_rz << ","
-                    << " ," // Separator
-                    << j1_deg << "," << j2_deg << "," << j3_deg << ","
-                    << j4_deg << "," << j5_deg << "," << j6_deg << ","
-                    << " ," // Separator
-                    << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
-                    << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
-
-            // S-Curve File
-            outScurve << pt.x << "," << pt.y << "," << pt.z << ","
-                      << target_rx << "," << target_ry << "," << target_rz << "\n";
-
-            // IK Values File
-            outIK << j1_deg << "," << j2_deg << "," << j3_deg << ","
-                  << j4_deg << "," << j5_deg << "," << j6_deg << "\n";
-
-            // FK Values File
-            outFK << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << ","
-                  << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
+            outScurve << pt.x << "," << pt.y << "," << pt.z << "," << target_rx << "," << target_ry << "," << target_rz << "\n";
+            outIK << j1_deg << "," << j2_deg << "," << j3_deg << "," << j4_deg << "," << j5_deg << "," << j6_deg << "\n";
+            outFK << fk_tcp_user.p.x() << "," << fk_tcp_user.p.y() << "," << fk_tcp_user.p.z() << "," << fk_rx << "," << fk_ry << "," << fk_rz << "\n";
         }
 
-        fileFull.close();
-        fileCAD.close();
-        fileScurve.close();
-        fileIK.close();
-        fileFK.close();
-
-        qDebug() << "✅ 5 Trajectory Files Exported Successfully to: " << basePath;
-    } else {
-        qDebug() << "❌ Failed to open one or more CSV files for writing!";
+        fileFull.close(); fileCAD.close(); fileScurve.close(); fileIK.close(); fileFK.close();
     }
+
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
