@@ -689,16 +689,17 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             // 🚀 RESTORED ORIGINAL MATH: The axes that actually worked!
             // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
-            gp_Dir y_axis(tangentVec);
+            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z()); // Keeps tool pointing at surface
 
-            if (x_axis.IsParallel(y_axis, 0.01)) {
-                y_axis = gp_Dir(0, 0, 1);
-                if (x_axis.IsParallel(y_axis, 0.01)) y_axis = gp_Dir(0, 1, 0);
+            // 🚀 J6 DEAD-CENTER FIX: Align with the Robot's Base X-Axis
+            // This guarantees that when the tool points straight down, J6 is exactly 0.000
+            gp_Dir reference_dir(1, 0, 0);
+            if (x_axis.IsParallel(reference_dir, 0.01)) {
+                reference_dir = gp_Dir(0, 1, 0);
             }
 
+            gp_Dir y_axis = reference_dir.Crossed(x_axis);
             gp_Dir z_axis = x_axis.Crossed(y_axis);
-            y_axis = z_axis.Crossed(x_axis);
 
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
@@ -783,16 +784,17 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             // 🚀 RESTORED ORIGINAL MATH
             // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
-            gp_Dir y_axis(tangentVec);
+            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z()); // Keeps tool pointing at surface
 
-            if (x_axis.IsParallel(y_axis, 0.01)) {
-                y_axis = gp_Dir(0, 0, 1);
-                if (x_axis.IsParallel(y_axis, 0.01)) y_axis = gp_Dir(0, 1, 0);
+            // 🚀 J6 DEAD-CENTER FIX: Align with the Robot's Base X-Axis
+            // This guarantees that when the tool points straight down, J6 is exactly 0.000
+            gp_Dir reference_dir(1, 0, 0);
+            if (x_axis.IsParallel(reference_dir, 0.01)) {
+                reference_dir = gp_Dir(0, 1, 0);
             }
 
+            gp_Dir y_axis = reference_dir.Crossed(x_axis);
             gp_Dir z_axis = x_axis.Crossed(y_axis);
-            y_axis = z_axis.Crossed(x_axis);
 
             gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
             gp_Ax3 toolPos(pt, z_axis, x_axis);
@@ -814,6 +816,9 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             // =========================================================
             // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
             // =========================================================
+            // =========================================================
+            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
+            // =========================================================
             gp_Mat m = trsf.VectorialPart();
 
             KDL::Rotation kdlRot(
@@ -822,6 +827,8 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
                 m.Value(3,1), m.Value(3,2), m.Value(3,3)
                 );
 
+            // 🚀 J6 FIX: We use kdlRot directly, just like processWire!
+            // Removed the RotX(M_PI) flip that was causing the J6 death spin.
             double rx, ry, rz;
             RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
 
@@ -890,8 +897,6 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
             }
 
             if (myIsSettingOriginMode) {
-                // ... (Keep all your existing origin setup logic below here) ...
-                // (Keep your existing origin setup logic here...)
                 TopoDS_Shape selectedShape = myContext->SelectedShape();
                 Bnd_Box boundingBox;
                 BRepBndLib::Add(selectedShape, boundingBox);

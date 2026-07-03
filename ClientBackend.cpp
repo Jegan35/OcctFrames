@@ -548,11 +548,9 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
                     double ry = parts[4].toDouble() * (M_PI / 180.0);
                     double rz = parts[5].toDouble() * (M_PI / 180.0);
 
-                    KDL::Rotation rawRot = KDL::Rotation::EulerZYX(rz, ry, rx);
-
-                    // 🚀 THE FIX: Rotate around the local X-axis (The Tool's Forward Axis)
-                    // This untwists J6 by 180 degrees without pointing the tool away from the part!
-                    g_drawingRotation = rawRot * KDL::Rotation::RotX(M_PI);
+                    // 🚀 THE FIX: Removed RotX(M_PI) here!
+                    // The S-Curve CSV data exported from Mode 1 already contains the corrected (flipped) angles.
+                    g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
 
                     rotationSet = true;
                 }
@@ -609,15 +607,14 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
             pathvec.push_back({occt_x, occt_y, occt_z});
 
             if (parts.size() >= 6 && !rotationSet) {
+                // 1. Read all three values perfectly
                 double rx = parts[3].toDouble() * (M_PI / 180.0);
                 double ry = parts[4].toDouble() * (M_PI / 180.0);
                 double rz = parts[5].toDouble() * (M_PI / 180.0);
 
-                KDL::Rotation rawRot = KDL::Rotation::EulerZYX(rz, ry, rx);
-
-                // 🚀 THE FIX: Rotate around the local X-axis (The Tool's Forward Axis)
-                // This untwists J6 by 180 degrees without pointing the tool away from the part!
-                g_drawingRotation = rawRot * KDL::Rotation::RotX(M_PI);
+                // 2. 🚀 NO MORE RotX(M_PI) HERE!
+                // The CAD file already contains the exact, 100% correct orientation.
+                g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
 
                 rotationSet = true;
             }
