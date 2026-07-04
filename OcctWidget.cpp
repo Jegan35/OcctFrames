@@ -1406,6 +1406,7 @@ void OcctWidget::showEvent(QShowEvent *event)
     });
 }
 
+
 void OcctWidget::clearLoadedPart()
 {
     if (!myLoadedPart.IsNull()) {
