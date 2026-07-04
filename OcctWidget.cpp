@@ -1425,11 +1425,13 @@ QString OcctWidget::getOriginText() const {
 
 void OcctWidget::drawRoomGrid()
 {
-    // Defined boundaries
-    double minX = -2000.0, maxX = 2000.0;
-    double minY = -2000.0, maxY = 2000.0;
+    // Defined boundaries (Expanded to 7000)
+    double minX = -7000.0, maxX = 7000.0;
+    double minY = -7000.0, maxY = 7000.0;
     double minZ = 0.0, maxZ = 2000.0;
-    double step = 100.0;
+
+    double step = 100.0; // Physical grid lines every 100mm
+    int labelStep = 500; // Text labels every 500mm to prevent overlapping text
 
     TopoDS_Compound floorComp, backWallComp, leftWallComp;
     BRep_Builder builder;
@@ -1445,7 +1447,6 @@ void OcctWidget::drawRoomGrid()
 
     // ---------------------------------------------------------
     // 2. BACK WALL (Blue Wall - Behind the robot at X = minX)
-    // (No changes here)
     // ---------------------------------------------------------
     for (double y = minY; y <= maxY; y += step)
         builder.Add(backWallComp, BRepBuilderAPI_MakeEdge(gp_Pnt(minX, y, minZ), gp_Pnt(minX, y, maxZ)));
@@ -1489,7 +1490,7 @@ void OcctWidget::drawRoomGrid()
     // ==========================================
     // 🚀 RED LABELS (X-Axis / Front-Back) - SWAPPED: Moved to Y = maxY (Left side of the floor)
     // ==========================================
-    for (int x = -2000; x <= 2000; x += 100) {
+    for (int x = -7000; x <= 7000; x += labelStep) {
         if (x == 0) continue;
         Handle(AIS_TextLabel) xLabel = new AIS_TextLabel();
         xLabel->SetText(TCollection_ExtendedString(x));
@@ -1505,7 +1506,7 @@ void OcctWidget::drawRoomGrid()
     // ==========================================
     // 🚀 GREEN LABELS (Y-Axis / Left-Right)
     // ==========================================
-    for (int y = -2000; y <= 2000; y += 100) {
+    for (int y = -7000; y <= 7000; y += labelStep) {
         if (y == 0) continue;
         Handle(AIS_TextLabel) yLabel = new AIS_TextLabel();
         yLabel->SetText(TCollection_ExtendedString(y));
@@ -1564,7 +1565,6 @@ void OcctWidget::drawRoomGrid()
 
     myView->FitAll();
 }
-
 
 
 // ==========================================================

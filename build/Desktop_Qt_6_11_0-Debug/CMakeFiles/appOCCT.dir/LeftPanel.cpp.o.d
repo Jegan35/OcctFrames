@@ -390,9 +390,6 @@ CMakeFiles/appOCCT.dir/LeftPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qiodevice.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtextdocument.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qurl.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QElapsedTimer \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qelapsedtimer.h \
  /home/texsonics/Documents/toolocct/ClientBackend.h \
@@ -1290,17 +1287,4 @@ CMakeFiles/appOCCT.dir/LeftPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayoutitem.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgridlayout.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QHBoxLayout \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QGridLayout \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QApplication \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qapplication.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcoreapplication.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcoreevent.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qnativeinterface.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qcoreapplication_platform.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qguiapplication.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qinputmethod.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qguiapplication_platform.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QDialog \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qdialog.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QFrame

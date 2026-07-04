@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
-#include <QTabWidget>
+#include <QStackedWidget>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QLabel>
@@ -85,7 +85,7 @@ signals:
     void requestSetJogStep(QString stepVal);
     void requestClearTargetMarker();
     void requestMainTransformPart(double dx, double dy, double dz, double rx, double ry, double rz);
-
+    void requestClosePanel();
 
 private:
     void setupUI();
@@ -120,7 +120,7 @@ private:
 
     // Layout elements
     QVBoxLayout *m_mainLayout = nullptr;
-    QTabWidget *m_workspaceTabs = nullptr;
+    QStackedWidget *m_stackedWidget = nullptr;
     OcctWidget* m_stepPreviewWidget = nullptr;
     // DXF/STEP Page Items
     OcctWidget *m_dxfPreviewWidget = nullptr;

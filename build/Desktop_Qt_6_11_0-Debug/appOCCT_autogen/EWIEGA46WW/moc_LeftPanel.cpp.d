@@ -174,12 +174,9 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtransform.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlabel.h \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgets-config.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgetsexports.h \

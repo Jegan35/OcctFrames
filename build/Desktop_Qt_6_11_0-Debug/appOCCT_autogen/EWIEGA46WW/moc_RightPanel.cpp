@@ -65,6 +65,7 @@ template <> constexpr inline auto RightPanel::qt_create_metaobjectdata<qt_meta_t
         "rx",
         "ry",
         "rz",
+        "requestClosePanel",
         "setGetPointsEnabled",
         "enabled",
         "updateOriginLabel",
@@ -112,17 +113,19 @@ template <> constexpr inline auto RightPanel::qt_create_metaobjectdata<qt_meta_t
             { QMetaType::Double, 20 }, { QMetaType::Double, 21 }, { QMetaType::Double, 22 }, { QMetaType::Double, 23 },
             { QMetaType::Double, 24 }, { QMetaType::Double, 25 },
         }}),
+        // Signal 'requestClosePanel'
+        QtMocHelpers::SignalData<void()>(26, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'setGetPointsEnabled'
-        QtMocHelpers::SlotData<void(bool)>(26, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Bool, 27 },
+        QtMocHelpers::SlotData<void(bool)>(27, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 28 },
         }}),
         // Slot 'updateOriginLabel'
-        QtMocHelpers::SlotData<void(double, double, double)>(28, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(double, double, double)>(29, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Double, 6 }, { QMetaType::Double, 7 }, { QMetaType::Double, 8 },
         }}),
         // Slot 'setActiveTab'
-        QtMocHelpers::SlotData<void(int)>(29, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 30 },
+        QtMocHelpers::SlotData<void(int)>(30, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 31 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -158,9 +161,10 @@ void RightPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 8: _t->requestSetJogStep((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         case 9: _t->requestClearTargetMarker(); break;
         case 10: _t->requestMainTransformPart((*reinterpret_cast<std::add_pointer_t<double>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[6]))); break;
-        case 11: _t->setGetPointsEnabled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
-        case 12: _t->updateOriginLabel((*reinterpret_cast<std::add_pointer_t<double>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3]))); break;
-        case 13: _t->setActiveTab((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 11: _t->requestClosePanel(); break;
+        case 12: _t->setGetPointsEnabled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 13: _t->updateOriginLabel((*reinterpret_cast<std::add_pointer_t<double>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3]))); break;
+        case 14: _t->setActiveTab((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     }
@@ -187,6 +191,8 @@ void RightPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
             return;
         if (QtMocHelpers::indexOfMethod<void (RightPanel::*)(double , double , double , double , double , double )>(_a, &RightPanel::requestMainTransformPart, 10))
             return;
+        if (QtMocHelpers::indexOfMethod<void (RightPanel::*)()>(_a, &RightPanel::requestClosePanel, 11))
+            return;
     }
 }
 
@@ -209,14 +215,14 @@ int RightPanel::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 15)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 15;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 15)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 14;
+        _id -= 15;
     }
     return _id;
 }
@@ -285,5 +291,11 @@ void RightPanel::requestClearTargetMarker()
 void RightPanel::requestMainTransformPart(double _t1, double _t2, double _t3, double _t4, double _t5, double _t6)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 10, nullptr, _t1, _t2, _t3, _t4, _t5, _t6);
+}
+
+// SIGNAL 11
+void RightPanel::requestClosePanel()
+{
+    QMetaObject::activate(this, &staticMetaObject, 11, nullptr);
 }
 QT_WARNING_POP

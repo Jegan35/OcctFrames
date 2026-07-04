@@ -398,20 +398,20 @@ CMakeFiles/appOCCT.dir/main.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qfontvariableaxis.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSplitter \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsplitter.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QButtonGroup \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qbuttongroup.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
  /home/texsonics/Documents/toolocct/LeftPanel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlabel.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qpicture.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qiodevice.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtextdocument.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qurl.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QElapsedTimer \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qelapsedtimer.h \
  /home/texsonics/Documents/toolocct/ClientBackend.h \
@@ -1305,7 +1305,8 @@ CMakeFiles/appOCCT.dir/main.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayout.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayoutitem.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgridlayout.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QStackedWidget \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstackedwidget.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h \

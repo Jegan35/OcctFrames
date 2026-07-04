@@ -40,31 +40,13 @@ template <> constexpr inline auto LeftPanel::qt_create_metaobjectdata<qt_meta_ta
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "LeftPanel",
-        "requestLayoutControl",
-        "",
-        "requestTabChange",
-        "index",
-        "triggerSystemError",
-        "msg",
-        "clearSystemError",
-        "updateTelemetryUI"
+        "updateTelemetryUI",
+        ""
     };
 
     QtMocHelpers::UintData qt_methods {
-        // Signal 'requestLayoutControl'
-        QtMocHelpers::SignalData<void()>(1, 2, QMC::AccessPublic, QMetaType::Void),
-        // Signal 'requestTabChange'
-        QtMocHelpers::SignalData<void(int)>(3, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 4 },
-        }}),
-        // Slot 'triggerSystemError'
-        QtMocHelpers::SlotData<void(const QString &)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 6 },
-        }}),
-        // Slot 'clearSystemError'
-        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'updateTelemetryUI'
-        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -88,20 +70,11 @@ void LeftPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, v
     auto *_t = static_cast<LeftPanel *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->requestLayoutControl(); break;
-        case 1: _t->requestTabChange((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 2: _t->triggerSystemError((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 3: _t->clearSystemError(); break;
-        case 4: _t->updateTelemetryUI(); break;
+        case 0: _t->updateTelemetryUI(); break;
         default: ;
         }
     }
-    if (_c == QMetaObject::IndexOfMethod) {
-        if (QtMocHelpers::indexOfMethod<void (LeftPanel::*)()>(_a, &LeftPanel::requestLayoutControl, 0))
-            return;
-        if (QtMocHelpers::indexOfMethod<void (LeftPanel::*)(int )>(_a, &LeftPanel::requestTabChange, 1))
-            return;
-    }
+    (void)_a;
 }
 
 const QMetaObject *LeftPanel::metaObject() const
@@ -123,27 +96,15 @@ int LeftPanel::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 5)
+        if (_id < 1)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 5;
+        _id -= 1;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 5)
+        if (_id < 1)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 5;
+        _id -= 1;
     }
     return _id;
-}
-
-// SIGNAL 0
-void LeftPanel::requestLayoutControl()
-{
-    QMetaObject::activate(this, &staticMetaObject, 0, nullptr);
-}
-
-// SIGNAL 1
-void LeftPanel::requestTabChange(int _t1)
-{
-    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1);
 }
 QT_WARNING_POP

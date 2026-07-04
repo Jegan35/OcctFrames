@@ -182,14 +182,14 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qtransform.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QButtonGroup \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QMainWindow \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSpinBox \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSplitter \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTabWidget \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QStackedWidget \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QTextEdit \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
@@ -197,6 +197,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qbuttongroup.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgridlayout.h \
@@ -208,7 +209,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
-  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsplitter.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstackedwidget.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgets-config.h \

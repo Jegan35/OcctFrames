@@ -50,57 +50,51 @@ RightPanel::RightPanel(ClientBackend *backend, QWidget *parent)
     setupUI();
 }
 
-// ============================================================
-//  setupUI
-// ============================================================
+// In RightPanel.h, replace QTabWidget* m_workspaceTabs with QStackedWidget* m_stackedWidget;
+// Add a signal: void requestClosePanel();
+
 void RightPanel::setupUI()
 {
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
     m_mainLayout->setSpacing(0);
 
-    m_workspaceTabs = new QTabWidget(this);
-    m_workspaceTabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // Use Stacked Widget instead of Tab Widget
+    m_stackedWidget = new QStackedWidget(this);
+    m_stackedWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    m_workspaceTabs->setStyleSheet(
-        "QTabWidget::pane { border-top: 3px solid #00E5FF; background: #151822; }"
-        "QTabBar::tab { background: #1E1E24; color: #9CA3AF; padding: 10px 20px; font-weight: bold; "
-        "font-size: 12px; text-transform: uppercase; border: none; }"
-        "QTabBar::tab:selected { color: #00E5FF; border-bottom: 3px solid #00E5FF; background: #151822; }"
-        "QTabBar::tab:hover { color: #ffffff; }"
+    m_stackedWidget->addWidget(buildDxfFileWidget());     // Index 0
+    m_stackedWidget->addWidget(buildStepControlWidget()); // Index 1
+    m_stackedWidget->addWidget(buildFrameWidget());       // Index 2
+    m_stackedWidget->addWidget(buildToolWidget());        // Index 3
+    m_stackedWidget->addWidget(buildCalcOriginWidget());  // Index 4
+
+    m_mainLayout->addWidget(m_stackedWidget, 1);
+
+    // ==========================================================
+    // THE 10% BOTTOM CLOSE BUTTON (As seen in sketch)
+    // ==========================================================
+    QPushButton *btnClose = new QPushButton("⬆ CLOSE PANEL");
+    btnClose->setFixedHeight(50);
+    btnClose->setCursor(Qt::PointingHandCursor);
+    btnClose->setStyleSheet(
+        "QPushButton { background-color: #37474F; color: white; font-weight: bold; font-size: 14px; border: none; border-top: 2px solid #00E5FF; } "
+        "QPushButton:hover { background-color: #263238; }"
         );
 
-    m_workspaceTabs->addTab(buildDxfFileWidget(), "DXF / STEP FILE");
-    m_workspaceTabs->addTab(buildStepControlWidget(), "STEP CONTROL");
-    m_workspaceTabs->addTab(buildFrameWidget(), "USER FRAMES");
-    m_workspaceTabs->addTab(buildToolWidget(), "TOOL FRAMES");
-    m_workspaceTabs->addTab(buildCalcOriginWidget(), "CALC ORIGIN");
-
-    // ==========================================================
-    // 🚀 NEW: RIGHT PANEL TOP-RIGHT CORNER EXIT BUTTON
-    // ==========================================================
-    QPushButton *btnExit = new QPushButton("❌ EXIT");
-    btnExit->setCursor(Qt::PointingHandCursor);
-    btnExit->setStyleSheet("QPushButton { background-color: #EF4444; color: white; font-weight: bold; font-size: 13px; padding: 4px 15px; border-radius: 3px; border: none; margin: 4px 10px; } "
-                           "QPushButton:hover { background-color: #B91C1C; }");
-
-    connect(btnExit, &QPushButton::clicked, this, [this]() {
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "Exit Application",
-                                      "Do you want to exit?\nAll unsaved data will be lost.",
-                                      QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            QApplication::quit();
-        }
+    connect(btnClose, &QPushButton::clicked, this, [this]() {
+        emit requestClosePanel();
     });
 
-
-    m_workspaceTabs->setCornerWidget(btnExit, Qt::TopRightCorner);
-    // ==========================================================
-
-    m_mainLayout->addWidget(m_workspaceTabs);
+    m_mainLayout->addWidget(btnClose, 0);
 }
 
+void RightPanel::setActiveTab(int index)
+{
+    if (m_stackedWidget && index >= 0 && index < m_stackedWidget->count()) {
+        m_stackedWidget->setCurrentIndex(index);
+    }
+}
 
 // ============================================================
 //  buildDxfFileWidget (✅ TOP 50% 3D View | BOTTOM 50% Controls)
@@ -927,12 +921,6 @@ void RightPanel::loadUserFramesConfig()
     m_activeFrameIndex = settings.value("ActiveFrameIndex", 0).toInt();
 }
 
-void RightPanel::setActiveTab(int index)
-{
-    if (m_workspaceTabs && index >= 0 && index < m_workspaceTabs->count()) {
-        m_workspaceTabs->setCurrentIndex(index);
-    }
-}
 
 // ============================================================
 //  TOOL FRAME WIDGET BUILDER (DROPDOWN + EDITOR UI)
