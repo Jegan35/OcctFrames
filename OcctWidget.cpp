@@ -602,11 +602,14 @@ void OcctWidget::processCurrentSelection(double resolution)
         myContext->NextSelected();
     }
     myContext->ClearSelected(Standard_True);
+    this->setProperty("selectionCount", 0); // 🚀 NEW: Reset the count mathematically
     myRedoStack.clear();
 
     emit coordinatesExtracted(txtData);
     regenerateCSV();
     emit statusUpdate(QString("✅ Extracted %1 new path(s). Total Paths: %2").arg(addedCount).arg(myPathHistory.size()));
+
+    // 🚀 Triggers the UI to flip back to Yellow and display "COUNT: 0"
     emit selectionChanged(false);
 }
 
@@ -685,14 +688,9 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             gp_Vec tangentVec;
             compCurve.D1(param, pt, tangentVec);
 
-            // =========================================================
-            // 🚀 RESTORED ORIGINAL MATH: The axes that actually worked!
-            // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
             gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z()); // Keeps tool pointing at surface
 
-            // 🚀 J6 DEAD-CENTER FIX: Align with the Robot's Base X-Axis
-            // This guarantees that when the tool points straight down, J6 is exactly 0.000
             gp_Dir reference_dir(1, 0, 0);
             if (x_axis.IsParallel(reference_dir, 0.01)) {
                 reference_dir = gp_Dir(0, 1, 0);
@@ -701,52 +699,62 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             gp_Dir y_axis = reference_dir.Crossed(x_axis);
             gp_Dir z_axis = x_axis.Crossed(y_axis);
 
-            gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
-            gp_Ax3 toolPos(pt, z_axis, x_axis);
+            // =======================================================
+            // 🚀 NEW: HELPER TO WRITE COORDINATES (Cleans up code)
+            // =======================================================
+            auto writeCoordinates = [&](const gp_Pnt& point) {
+                gp_Ax3 toolPos(point, z_axis, x_axis);
+
+                gp_Trsf inverseTranslation;
+                inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+                toolPos.Transform(inverseTranslation);
+
+                gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+                gp_Trsf trsf;
+                trsf.SetDisplacement(defaultOXY, toolPos);
+
+                gp_Mat m = trsf.VectorialPart();
+                KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                                     m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                                     m.Value(3,1), m.Value(3,2), m.Value(3,3));
+
+                double rx, ry, rz;
+                RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+                double x_mm = toolPos.Location().X();
+                double y_mm = toolPos.Location().Y();
+                double z_mm = toolPos.Location().Z();
+
+                out << x_mm << "," << y_mm << "," << z_mm << "," << rx << "," << ry << "," << rz << "\n";
+            };
 
             if (!m_isFirstPointFound) {
-                drawStartMarker(toolPos.Location());
+                gp_Ax3 startPos(pt, z_axis, x_axis); // Marker stays on the surface
+                drawStartMarker(startPos.Location());
                 m_isFirstPointFound = true;
             }
 
-            gp_Trsf inverseTranslation;
-            inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
-            toolPos.Transform(inverseTranslation);
+            // =======================================================
+            // 🚀 THE FIX: Z-HOP APPROACH (Move Down from 50mm Above)
+            // =======================================================
+            if (i == 1) {
+                gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 50.0); // Lift 50mm relative to surface
+                writeCoordinates(approachPt);
+            }
 
-            gp_Trsf trsf;
-            trsf.SetDisplacement(defaultOXY, toolPos);
+            // 📍 Write the actual cutting/laser point on the surface
+            writeCoordinates(pt);
 
-            // =========================================================
-            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
-            // =========================================================
-            // 1. Get the 3x3 Matrix from OpenCASCADE
-            gp_Mat m = trsf.VectorialPart();
-
-            // 2. Convert it into a KDL Rotation Matrix
-            KDL::Rotation kdlRot(
-                m.Value(1,1), m.Value(1,2), m.Value(1,3),
-                m.Value(2,1), m.Value(2,2), m.Value(2,3),
-                m.Value(3,1), m.Value(3,2), m.Value(3,3)
-                );
-
-            // 3. Ask the Brain for the unified degrees
-            double rx, ry, rz;
-            RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
-
-            // =========================================================
-            // 🚀 RESTORED: MILLIMETERS
-            // =========================================================
-            double x_mm = toolPos.Location().X();
-            double y_mm = toolPos.Location().Y();
-            double z_mm = toolPos.Location().Z();
-
-            // Note: rx, ry, rz are ALREADY in degrees thanks to RobotMath
-            out << x_mm << "," << y_mm << "," << z_mm << ","
-                << rx << "," << ry << "," << rz << "\n";
+            // =======================================================
+            // 🚀 THE FIX: Z-HOP RETRACT (Pull Up 50mm After Finishing)
+            // =======================================================
+            if (i == discretizer.NbPoints()) {
+                gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 50.0); // Lift 50mm relative to surface
+                writeCoordinates(retractPt);
+            }
         }
     }
 }
-
 void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution)
 {
     Standard_Real first, last;
@@ -780,14 +788,9 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             gp_Vec tangentVec;
             adaptor.D1(param, pt, tangentVec);
 
-            // =========================================================
-            // 🚀 RESTORED ORIGINAL MATH
-            // =========================================================
             gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z()); // Keeps tool pointing at surface
+            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
 
-            // 🚀 J6 DEAD-CENTER FIX: Align with the Robot's Base X-Axis
-            // This guarantees that when the tool points straight down, J6 is exactly 0.000
             gp_Dir reference_dir(1, 0, 0);
             if (x_axis.IsParallel(reference_dir, 0.01)) {
                 reference_dir = gp_Dir(0, 1, 0);
@@ -796,56 +799,59 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             gp_Dir y_axis = reference_dir.Crossed(x_axis);
             gp_Dir z_axis = x_axis.Crossed(y_axis);
 
-            gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
-            gp_Ax3 toolPos(pt, z_axis, x_axis);
+            // =======================================================
+            // 🚀 NEW: HELPER TO WRITE COORDINATES (Cleans up code)
+            // =======================================================
+            auto writeCoordinates = [&](const gp_Pnt& point) {
+                gp_Ax3 toolPos(point, z_axis, x_axis);
+                gp_Trsf inverseTranslation;
+                inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+                toolPos.Transform(inverseTranslation);
+
+                gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+                gp_Trsf trsf;
+                trsf.SetDisplacement(defaultOXY, toolPos);
+
+                gp_Mat m = trsf.VectorialPart();
+                KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                                     m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                                     m.Value(3,1), m.Value(3,2), m.Value(3,3));
+                double rx, ry, rz;
+                RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+                out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
+                    << rx << "," << ry << "," << rz << "\n";
+            };
 
             if (!m_isFirstPointFound) {
                 if (!isTrimmedEdge) {
-                    drawStartMarker(toolPos.Location());
+                    gp_Ax3 startPos(pt, z_axis, x_axis);
+                    drawStartMarker(startPos.Location());
                 }
                 m_isFirstPointFound = true;
             }
 
-            gp_Trsf inverseTranslation;
-            inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
-            toolPos.Transform(inverseTranslation);
+            // =======================================================
+            // 🚀 THE FIX: Z-HOP APPROACH
+            // =======================================================
+            if (i == 1) {
+                gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 50.0);
+                writeCoordinates(approachPt);
+            }
 
-            gp_Trsf trsf;
-            trsf.SetDisplacement(defaultOXY, toolPos);
+            // 📍 Write the actual surface point
+            writeCoordinates(pt);
 
-            // =========================================================
-            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
-            // =========================================================
-            // =========================================================
-            // 🧠 THE FIX: ONE BRAIN (Route OpenCASCADE through KDL)
-            // =========================================================
-            gp_Mat m = trsf.VectorialPart();
-
-            KDL::Rotation kdlRot(
-                m.Value(1,1), m.Value(1,2), m.Value(1,3),
-                m.Value(2,1), m.Value(2,2), m.Value(2,3),
-                m.Value(3,1), m.Value(3,2), m.Value(3,3)
-                );
-
-            // 🚀 J6 FIX: We use kdlRot directly, just like processWire!
-            // Removed the RotX(M_PI) flip that was causing the J6 death spin.
-            double rx, ry, rz;
-            RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
-
-            // =========================================================
-            // 🚀 RESTORED: MILLIMETERS
-            // =========================================================
-            double x_mm = toolPos.Location().X();
-            double y_mm = toolPos.Location().Y();
-            double z_mm = toolPos.Location().Z();
-
-            // Note: rx, ry, rz are ALREADY in degrees thanks to RobotMath
-            out << x_mm << "," << y_mm << "," << z_mm << ","
-                << rx << "," << ry << "," << rz << "\n";
+            // =======================================================
+            // 🚀 THE FIX: Z-HOP RETRACT
+            // =======================================================
+            if (i == discretizer.NbPoints()) {
+                gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 50.0);
+                writeCoordinates(retractPt);
+            }
         }
     }
 }
-
 
 void OcctWidget::paintEvent(QPaintEvent *event)
 {
@@ -879,14 +885,29 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         myContext->MoveTo(x, y, myView, Standard_True);
 
-        if (event->modifiers() & Qt::ShiftModifier) {
-            myContext->SelectDetected(AIS_SelectionScheme_XOR);
-        } else {
-            myContext->SelectDetected(AIS_SelectionScheme_Replace);
-        }
+        // ==========================================
+        // 🚀 THE FIX: CONTINUOUS MULTI-SELECT (No Shift Required)
+        // AIS_SelectionScheme_XOR acts as a toggle. Clicking a letter adds it.
+        // Clicking it again removes it.
+        // ==========================================
+        myContext->SelectDetected(AIS_SelectionScheme_XOR);
 
         myView->Redraw();
+
+        // 🚀 NEW: Count the total number of selected shapes
         myContext->InitSelected();
+        int selCount = 0;
+        while(myContext->MoreSelected()) {
+            selCount++;
+            myContext->NextSelected();
+        }
+
+        // Save the count into a dynamic property so RightPanel can read it
+        this->setProperty("selectionCount", selCount);
+
+        // Reset the iterator for downstream logic
+        myContext->InitSelected();
+
         if (myContext->HasSelectedShape()) {
 
             // ✅ THE SHIELD: If we clicked the ViewCube, STOP here and let it move the camera!
@@ -923,31 +944,25 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
                 return;
             }
 
-            // ==========================================
-            // NEW ROLE CHECKING LOGIC
-            // ==========================================
             if (myRole == MainRole) {
-                // Left Window: Isolate the part and send to Right Window
                 TopoDS_Shape selectedShape = myContext->SelectedShape();
                 emit partSelectedForIsolation(selectedShape);
                 myContext->ClearSelected(Standard_True);
             }
             else if (myRole == SideRole) {
-                // ✅ FIX: Don't extract immediately! Just notify the UI that a shape is selected.
-                // The user must click "GET POINTS" to actually calculate the math.
-                emit selectionChanged(myContext->HasSelectedShape());
+                emit selectionChanged(true); // Triggers RightPanel to update UI to > 0
+            }
+        } else {
+            // Selection is empty!
+            if (myRole == SideRole) {
+                emit selectionChanged(false); // Triggers RightPanel to update UI back to 0
             }
         }
     }
-    // ==========================================
-    // ✅ NEW FIX: Tell the camera to start rotating!
-    // ==========================================
     else if (event->button() == Qt::RightButton) {
         myView->StartRotation(x, y);
     }
 }
-
-
 
 
 

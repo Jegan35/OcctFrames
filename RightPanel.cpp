@@ -156,6 +156,7 @@ QWidget* RightPanel::buildDxfFileWidget()
     ctrlLayout->setSpacing(10);
 
     // --- ROW 1: Mode & Distance ---
+    // --- ROW 1: Mode & Distance ---
     QHBoxLayout *row1 = new QHBoxLayout();
     QLabel *lblMode = new QLabel("SELECTION MODE:");
     lblMode->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:11px;");
@@ -170,14 +171,23 @@ QWidget* RightPanel::buildDxfFileWidget()
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->setSelectionMode(index + 1);
     });
 
+    // =================================================================
+    // 🚀 NEW: LIVE SELECTION COUNT BOX
+    // =================================================================
+    QLabel *lblCount = new QLabel("COUNT: 0");
+    lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:6px 10px; border-radius:4px; border:1px solid #F59E0B;");
+
     QLabel *lblDist = new QLabel("Distance (mm):");
     lblDist->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:11px;");
 
     QLineEdit *txtDistance = new QLineEdit("2.0");
     txtDistance->setStyleSheet("QLineEdit { background:#1a1e2a; color:#ffffff; border:1px solid #2a2d35; padding:6px; border-radius:4px; font-size:13px; font-family:monospace; } QLineEdit:focus { border-color:#00bcd4; }");
 
-    row1->addWidget(lblMode); row1->addWidget(cmbSelection, 1);
-    row1->addWidget(lblDist); row1->addWidget(txtDistance, 1);
+    row1->addWidget(lblMode);
+    row1->addWidget(cmbSelection, 1);
+    row1->addWidget(lblCount); // <-- Added in between!
+    row1->addWidget(lblDist);
+    row1->addWidget(txtDistance, 1);
     ctrlLayout->addLayout(row1);
 
     // =================================================================
@@ -405,8 +415,20 @@ QWidget* RightPanel::buildDxfFileWidget()
         }
     });
 
-    connect(m_dxfPreviewWidget, &OcctWidget::selectionChanged, this, [this](bool hasSelection){
+    // 🚀 THE FIX: Connect the 3D Engine to the Count UI Box
+    connect(m_dxfPreviewWidget, &OcctWidget::selectionChanged, this, [this, lblCount](bool hasSelection){
         this->setGetPointsEnabled(hasSelection);
+
+        // Read the dynamic count property sent from the 3D canvas
+        int count = m_dxfPreviewWidget->property("selectionCount").toInt();
+
+        if(count > 0) {
+            lblCount->setText(QString("COUNT: %1").arg(count));
+            lblCount->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px; background:#064E3B; padding:6px 10px; border-radius:4px; border:1px solid #10B981;");
+        } else {
+            lblCount->setText("COUNT: 0");
+            lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:6px 10px; border-radius:4px; border:1px solid #F59E0B;");
+        }
     });
 
     // =================================================================
