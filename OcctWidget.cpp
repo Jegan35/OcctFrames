@@ -88,6 +88,8 @@
 #include <TopTools_ListOfShape.hxx>
 #include <TopoDS_Wire.hxx>
 
+
+
 static gp_Pnt g_partCenter(0, 0, 0);
 static bool g_hasPartCenter = false;
 static double g_currentRx = 0.0, g_currentRy = 0.0, g_currentRz = 0.0;
@@ -216,15 +218,21 @@ void OcctWidget::initOCCT()
         Handle(AIS_ViewCube) viewCube = new AIS_ViewCube();
 
         viewCube->SetDrawAxes(Standard_True);
-        viewCube->SetSize(55);
-        viewCube->SetFontHeight(12);
+
+        // 🚀 THE FIX: Increase the size of the cube and its font!
+        viewCube->SetSize(85);         // Increased from 55
+        viewCube->SetFontHeight(16);   // Increased from 12
         viewCube->SetAxesLabels("X", "Y", "Z");
 
+        // 🚀 THE FIX: Move to Bottom-Left and push it up above the UI!
+        // Aspect_TOTP_LEFT_LOWER anchors it to the bottom-left corner.
+        // Graphic3d_Vec2i(100, 200) moves it 100px right, and 200px UP so it doesn't hide behind your Cartesian box.
         Handle(Graphic3d_TransformPers) trsfPers = new Graphic3d_TransformPers(
             Graphic3d_TMF_TriedronPers,
-            Aspect_TOTP_RIGHT_UPPER,
-            Graphic3d_Vec2i(85, 85)
+            Aspect_TOTP_LEFT_LOWER,
+            Graphic3d_Vec2i(120, 100)
             );
+
         viewCube->SetTransformPersistence(trsfPers);
         myContext->Display(viewCube, Standard_False);
 
@@ -884,14 +892,7 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
 
     if (event->button() == Qt::LeftButton) {
         myContext->MoveTo(x, y, myView, Standard_True);
-
-        // ==========================================
-        // 🚀 THE FIX: CONTINUOUS MULTI-SELECT (No Shift Required)
-        // AIS_SelectionScheme_XOR acts as a toggle. Clicking a letter adds it.
-        // Clicking it again removes it.
-        // ==========================================
         myContext->SelectDetected(AIS_SelectionScheme_XOR);
-
         myView->Redraw();
 
         // 🚀 NEW: Count the total number of selected shapes
@@ -908,52 +909,71 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
         // Reset the iterator for downstream logic
         myContext->InitSelected();
 
-        if (myContext->HasSelectedShape()) {
+        // ==========================================================
+        // 🚀 THE FIX: Check MoreSelected() BEFORE checking for Shapes
+        // ==========================================================
+        if (myContext->MoreSelected()) {
 
-            // ✅ THE SHIELD: If we clicked the ViewCube, STOP here and let it move the camera!
             Handle(AIS_InteractiveObject) selObj = myContext->SelectedInteractive();
+
+            // ✅ 1. THE SHIELD: Intercept ViewCube clicks and ROTATE the Camera
             if (!selObj.IsNull() && selObj->DynamicType() == STANDARD_TYPE(AIS_ViewCube)) {
-                myContext->ClearSelected(Standard_False);
-                return;
-            }
 
-            if (myIsSettingOriginMode) {
-                TopoDS_Shape selectedShape = myContext->SelectedShape();
-                Bnd_Box boundingBox;
-                BRepBndLib::Add(selectedShape, boundingBox);
-                Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
-                boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
-                gp_Pnt newOriginSnap((xMin + xMax) / 2.0, (yMin + yMax) / 2.0, (zMin + zMax) / 2.0);
-
-                QString msg = QString("Do you want to set the new Robot Origin here?\n\nX: %1\nY: %2\nZ: %3")
-                                  .arg(newOriginSnap.X(), 0, 'f', 2).arg(newOriginSnap.Y(), 0, 'f', 2).arg(newOriginSnap.Z(), 0, 'f', 2);
-
-                if (QMessageBox::question(this, "Confirm New Origin", msg) == QMessageBox::Yes) {
-                    myCustomOrigin = newOriginSnap;
-                    gp_Ax2 newCoords(myCustomOrigin, gp_Dir(0, 0, 1), gp_Dir(1, 0, 0));
-                    Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(newCoords);
-                    myOriginMarker->SetComponent(placement);
-                    myContext->Redisplay(myOriginMarker, Standard_True);
-                    emit statusUpdate("🎯 New Local Origin Set Successfully!");
-                } else {
-                    emit statusUpdate("Origin Setup Cancelled.");
+                // Get the Owner to figure out exactly which face (Top, Front, Corner) was clicked
+                Handle(AIS_ViewCubeOwner) vcOwner = Handle(AIS_ViewCubeOwner)::DownCast(myContext->SelectedOwner());
+                if (!vcOwner.IsNull()) {
+                    // Snap the camera to that face and re-center the view!
+                    myView->SetProj(vcOwner->MainOrientation());
+                    myView->FitAll();
+                    myView->Redraw();
                 }
 
-                myIsSettingOriginMode = false;
+                // Clear the selection so the cube doesn't stay permanently highlighted
                 myContext->ClearSelected(Standard_True);
-                return;
+                return; // 🛑 Stop here! Do not process this as a CAD shape.
             }
 
-            if (myRole == MainRole) {
-                TopoDS_Shape selectedShape = myContext->SelectedShape();
-                emit partSelectedForIsolation(selectedShape);
-                myContext->ClearSelected(Standard_True);
-            }
-            else if (myRole == SideRole) {
-                emit selectionChanged(true); // Triggers RightPanel to update UI to > 0
+            // ✅ 2. Process regular CAD shape selections
+            if (myContext->HasSelectedShape()) {
+
+                if (myIsSettingOriginMode) {
+                    TopoDS_Shape selectedShape = myContext->SelectedShape();
+                    Bnd_Box boundingBox;
+                    BRepBndLib::Add(selectedShape, boundingBox);
+                    Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
+                    boundingBox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+                    gp_Pnt newOriginSnap((xMin + xMax) / 2.0, (yMin + yMax) / 2.0, (zMin + zMax) / 2.0);
+
+                    QString msg = QString("Do you want to set the new Robot Origin here?\n\nX: %1\nY: %2\nZ: %3")
+                                      .arg(newOriginSnap.X(), 0, 'f', 2).arg(newOriginSnap.Y(), 0, 'f', 2).arg(newOriginSnap.Z(), 0, 'f', 2);
+
+                    if (QMessageBox::question(this, "Confirm New Origin", msg) == QMessageBox::Yes) {
+                        myCustomOrigin = newOriginSnap;
+                        gp_Ax2 newCoords(myCustomOrigin, gp_Dir(0, 0, 1), gp_Dir(1, 0, 0));
+                        Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(newCoords);
+                        myOriginMarker->SetComponent(placement);
+                        myContext->Redisplay(myOriginMarker, Standard_True);
+                        emit statusUpdate("🎯 New Local Origin Set Successfully!");
+                    } else {
+                        emit statusUpdate("Origin Setup Cancelled.");
+                    }
+
+                    myIsSettingOriginMode = false;
+                    myContext->ClearSelected(Standard_True);
+                    return;
+                }
+
+                if (myRole == MainRole) {
+                    TopoDS_Shape selectedShape = myContext->SelectedShape();
+                    emit partSelectedForIsolation(selectedShape);
+                    myContext->ClearSelected(Standard_True);
+                }
+                else if (myRole == SideRole) {
+                    emit selectionChanged(true); // Triggers RightPanel to update UI to > 0
+                }
             }
         } else {
-            // Selection is empty!
+            // Selection is completely empty
             if (myRole == SideRole) {
                 emit selectionChanged(false); // Triggers RightPanel to update UI back to 0
             }
@@ -963,7 +983,6 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
         myView->StartRotation(x, y);
     }
 }
-
 
 
 
@@ -1107,9 +1126,12 @@ void OcctWidget::loadNextRobotLink()
         return;
     }
 
-    // 2. Setup the file path
-    QString folderPath = "/home/texsonics/Documents/toolocct/step1/";
-    QString fileName = folderPath + QString("link%1.stl").arg(myCurrentLoadIndex);
+    // 2. Setup the file path using the Dynamic Prefix!
+    QString folderPath = m_robotFolderPath;
+    if (!folderPath.endsWith("/")) folderPath += "/";
+
+    // 🚀 USE THE PREFIX VARIABLE HERE:
+    QString fileName = folderPath + m_robotLinkPrefix + QString::number(myCurrentLoadIndex) + ".stl";
 
     if (!QFile::exists(fileName)) {
         qDebug() << "❌ STL FILE NOT FOUND: Missing ->" << fileName;
@@ -1242,12 +1264,12 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
     // ========================================================
     // 2. TRUE ABSOLUTE KINEMATIC ORIGINS (In Millimeters)
     // ========================================================
-    gp_Pnt orig1(0.0, 0.0, 0.0);        // J1 Pivot (Base)
-    gp_Pnt orig2(155.0, 0.0, 470.0);    // J2 Pivot (Shoulder)
-    gp_Pnt orig3(155.0, 0.0, 1074.0);   // J3 Pivot (Elbow)
-    gp_Pnt orig4(155.0, 0.0, 1274.0);   // J4 Pivot (Forearm Roll)
-    gp_Pnt orig5(795.5, 0.0, 1274.0);   // J5 Pivot (Wrist Pitch)
-    gp_Pnt orig6(795.5, 0.0, 1274.0);   // J6 Pivot (Wrist Roll - Intersects J5)
+    gp_Pnt orig1(0.0, 0.0, 0.0);                             // J1 Base
+    gp_Pnt orig2(m_rob_bx, 0.0, m_rob_bz);                   // J2 Shoulder
+    gp_Pnt orig3(m_rob_bx, 0.0, m_rob_bz + m_rob_az);        // J3 Elbow
+    gp_Pnt orig4(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez); // J4 Roll
+    gp_Pnt orig5(m_rob_bx + m_rob_fx, 0.0, m_rob_bz + m_rob_az + m_rob_ez); // J5 Pitch
+    gp_Pnt orig6(orig5.X(), orig5.Y(), orig5.Z());           // J6 Intersects J5
 
     // ========================================================
     // 3. ROTATION AXES (Matching your KDL perfectly)
@@ -1295,11 +1317,9 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
     // ✅ ATTACH THE ARROWS AND TOOL TO THE ROBOT
     // ========================================================
     if (!myTipTriad.IsNull()) {
-
-        // 1. POSITION OF THE BARE FLANGE (J6)
         gp_Trsf moveToFlange;
-        moveToFlange.SetTranslation(gp_Vec(795.5 + 100.0, 0.0, 1274.0));
-
+        // Shift outward by the Wrist X offset
+        moveToFlange.SetTranslation(gp_Vec(m_rob_bx + m_rob_fx + m_rob_wx, 0.0, m_rob_bz + m_rob_az + m_rob_ez));
 
         gp_Trsf flangeTrsf = accum6 * moveToFlange;
         myLastTipTrsf = flangeTrsf;
@@ -1324,7 +1344,7 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
 
         if (myTrajectoryPoints.empty() || myTrajectoryPoints.back().Distance(currentTCP) > 1.0) {
             myTrajectoryPoints.push_back(currentTCP);
-            if (myTrajectoryPoints.size() > 500) {
+            if (myTrajectoryPoints.size() > 5000) {
                 myTrajectoryPoints.erase(myTrajectoryPoints.begin());
             }
 
@@ -1362,6 +1382,10 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
     // ========================================================
     this->update();
 }
+
+
+
+
 
 void OcctWidget::clearMarks()
 {
@@ -1996,4 +2020,54 @@ void OcctWidget::calculateCustomEndPoint(double percentage)
 
     emit customEndPointCalculated(xyzText);
     emit statusUpdate("✅ End Point Set.");
+}
+// ==========================================================
+// 🚀 DYNAMIC ROBOT HOT-SWAP
+// ==========================================================
+// ==========================================================
+// 🚀 DYNAMIC ROBOT HOT-SWAP
+// ==========================================================
+void OcctWidget::reloadRobot(const QString& folderPath, const QString& linkPrefix,
+                             double bx, double bz, double az, double ez, double fx, double wx)
+{
+    if (myContext.IsNull()) return;
+    myCurrentLoadIndex = -1;
+
+    // 1. Save new parameters locally
+    m_robotFolderPath = folderPath;
+    m_robotLinkPrefix = linkPrefix;
+    m_rob_bx = bx; m_rob_bz = bz; m_rob_az = az;
+    m_rob_ez = ez; m_rob_fx = fx; m_rob_wx = wx;
+
+    for (auto& link : myRobotLinks) {
+        if (!link.IsNull()) {
+            myContext->Remove(link, Standard_False);
+            link.Nullify();
+        }
+    }
+    myRobotLinks.clear();
+
+    // 3. Remove Triads (Base and Tool TCP arrows)
+    if (!myBaseTriad.IsNull()) {
+        myContext->Remove(myBaseTriad, Standard_False);
+        myBaseTriad.Nullify();
+    }
+    if (!myTipTriad.IsNull()) {
+        myContext->Remove(myTipTriad, Standard_False);
+        myTipTriad.Nullify();
+    }
+
+    // 4. Temporarily detach the tool (if any) so it doesn't float in space
+    if (!myToolShape.IsNull()) {
+        myContext->Remove(myToolShape, Standard_False);
+        // We do not nullify myToolShape because it can be re-attached later
+    }
+
+    myContext->UpdateCurrentViewer();
+
+    // 5. Update the path variable
+    m_robotFolderPath = folderPath;
+
+    // 6. Trigger the async loader loop to build the new robot
+    loadDefaultRobot();
 }

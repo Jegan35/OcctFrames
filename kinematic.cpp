@@ -259,3 +259,49 @@ void kinematic::UpdateLimits(double j1mn, double j1mx, double j2mn, double j2mx,
     KDLJointMin(4) = j5mn * toRadians; KDLJointMax(4) = j5mx * toRadians;
     KDLJointMin(5) = j6mn * toRadians; KDLJointMax(5) = j6mx * toRadians;
 }
+
+int kinematic::RebuildChain(double bx, double bz, double az, double ez, double fx, double wx)
+{
+    KDLChain = KDL::Chain();
+
+    // EXACT 6-AXIS TOPOLOGY MATCHING ORIGINAL INIT()
+
+    // Seg 0: J1 (Base). The offset places J2 (Shoulder) at (bx, 0, bz)
+    KDLChain.addSegment(KDL::Segment("J0", KDL::Joint(KDL::Joint::RotZ), KDL::Frame(KDL::Vector(bx, 0.0, bz))));
+
+    // Seg 1: J2 (Shoulder). The offset places J3 (Elbow) at (0, 0, az) relative to Shoulder
+    KDLChain.addSegment(KDL::Segment("J1", KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Vector(0.0, 0.0, az))));
+
+    // Seg 2: J3 (Elbow). The offset places J4 (Forearm Roll) at (0, 0, ez) relative to Elbow
+    KDLChain.addSegment(KDL::Segment("J2", KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Vector(0.0, 0.0, ez))));
+
+    // Seg 3: J4 (Forearm Roll). The offset places J5 (Wrist Pitch) at (fx, 0, 0) relative to Forearm
+    KDLChain.addSegment(KDL::Segment("J3", KDL::Joint(KDL::Joint::RotX), KDL::Frame(KDL::Vector(fx, 0.0, 0.0))));
+
+    // Seg 4: J5 (Wrist Pitch). J6 (Wrist Roll) intersects exactly at J5 center, so offset is (0,0,0)
+    KDLChain.addSegment(KDL::Segment("J4", KDL::Joint(KDL::Joint::RotY), KDL::Frame(KDL::Vector(0.0, 0.0, 0.0))));
+
+    // Seg 5: J6 (Wrist Roll). The offset places the Tool Flange at (wx, 0, 0) relative to Wrist
+    KDLChain.addSegment(KDL::Segment("J5", KDL::Joint(KDL::Joint::RotX), KDL::Frame(KDL::Vector(wx, 0.0, 0.0))));
+
+    // Resize arrays to match new chain
+    KDLJointMin.resize(KDLChain.getNrOfSegments());
+    KDLJointMax.resize(KDLChain.getNrOfSegments());
+    KDLJointCur.resize(KDLChain.getNrOfSegments());
+    KDLJointInit.resize(KDLChain.getNrOfSegments());
+
+    // Re-apply Default Limits
+    KDLJointMin(0) = -170 * toRadians; KDLJointMax(0) =  170 * toRadians;
+    KDLJointMin(1) = -100 * toRadians; KDLJointMax(1) =  135 * toRadians;
+    KDLJointMin(2) = -210 * toRadians; KDLJointMax(2) =   66 * toRadians;
+    KDLJointMin(3) = -185 * toRadians; KDLJointMax(3) =  185 * toRadians;
+    KDLJointMin(4) = -120 * toRadians; KDLJointMax(4) =  120 * toRadians;
+    KDLJointMin(5) = -350 * toRadians; KDLJointMax(5) =  350 * toRadians;
+
+    for(unsigned int i=0; i<6; i++){
+        KDLJointInit(i) = 0.0;
+    }
+
+    if (Fk()) return 1;
+    else return 0;
+}

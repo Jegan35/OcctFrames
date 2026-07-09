@@ -47,6 +47,7 @@ RightPanel::RightPanel(ClientBackend *backend, QWidget *parent)
 
     loadUserFramesConfig();
     loadToolFramesConfig();
+    loadRobotConfig(); // 🚀 ADD THIS
     setupUI();
 }
 
@@ -68,6 +69,7 @@ void RightPanel::setupUI()
     m_stackedWidget->addWidget(buildFrameWidget());       // Index 2
     m_stackedWidget->addWidget(buildToolWidget());        // Index 3
     m_stackedWidget->addWidget(buildCalcOriginWidget());  // Index 4
+    m_stackedWidget->addWidget(buildRobotWidget());
 
     m_mainLayout->addWidget(m_stackedWidget, 1);
 
@@ -2036,6 +2038,299 @@ QWidget* RightPanel::buildStepControlWidget()
 
             saveUserFramesConfig();
             refreshFrameUI();
+        }
+    });
+
+    return w;
+}
+
+// ============================================================
+//  ROBOT CONFIG SAVE/LOAD (UPGRADED)
+// ============================================================
+void RightPanel::saveRobotConfig()
+{
+    QSettings settings("Texsonics", "RobotStudio");
+    settings.beginWriteArray("RobotConfigs");
+    for (int i = 0; i < m_robotConfigs.size(); ++i) {
+        settings.setArrayIndex(i);
+        settings.setValue("name", m_robotConfigs[i].name);
+        settings.setValue("folderPath", m_robotConfigs[i].folderPath);
+        settings.setValue("linkPrefix", m_robotConfigs[i].linkPrefix);
+        settings.setValue("base_x", m_robotConfigs[i].base_x);
+        settings.setValue("base_z", m_robotConfigs[i].base_z);
+        settings.setValue("arm_z", m_robotConfigs[i].arm_z);
+        settings.setValue("elbow_z", m_robotConfigs[i].elbow_z);
+        settings.setValue("forearm_x", m_robotConfigs[i].forearm_x);
+        settings.setValue("wrist_x", m_robotConfigs[i].wrist_x);
+    }
+    settings.endArray();
+    settings.setValue("ActiveRobotIndex", m_activeRobotIndex);
+}
+
+void RightPanel::loadRobotConfig()
+{
+    QSettings settings("Texsonics", "RobotStudio");
+    m_robotConfigs.clear();
+
+    int count = settings.beginReadArray("RobotConfigs");
+    if (count > 0) {
+        for (int i = 0; i < count; ++i) {
+            settings.setArrayIndex(i);
+            QString name = settings.value("name", "ROBOT_1").toString();
+            QString path = settings.value("folderPath", "/home/texsonics/Documents/toolocct/step1/").toString();
+            QString prefix = settings.value("linkPrefix", "link").toString();
+
+            // Your default lengths from kinematic.cpp
+            double bx = settings.value("base_x", 155.0).toDouble();
+            double bz = settings.value("base_z", 470.0).toDouble();
+            double az = settings.value("arm_z", 604.0).toDouble();
+            double ez = settings.value("elbow_z", 200.0).toDouble();
+            double fx = settings.value("forearm_x", 640.5).toDouble();
+            double wx = settings.value("wrist_x", 100.0).toDouble();
+
+            m_robotConfigs.append(RobotConfigData{name, path, prefix, bx, bz, az, ez, fx, wx});
+        }
+    } else {
+        m_robotConfigs.append(RobotConfigData{"DEFAULT_ROBOT", "/home/texsonics/Documents/toolocct/step1/", "link",
+                                              155.0, 470.0, 604.0, 200.0, 640.5, 100.0});
+    }
+    settings.endArray();
+    m_activeRobotIndex = settings.value("ActiveRobotIndex", 0).toInt();
+}
+
+// ============================================================
+//  BUILD ROBOT WIDGET (UPGRADED)
+// ============================================================
+QWidget* RightPanel::buildRobotWidget()
+{
+    QWidget *w = new QWidget();
+    w->setStyleSheet("background:#0d1117; color:white;");
+    QVBoxLayout *mainLay = new QVBoxLayout(w);
+    mainLay->setContentsMargins(15, 15, 15, 15);
+    mainLay->setSpacing(15);
+
+    // 1. ACTIVE ROBOT STATUS
+    QGroupBox *grpStatus = new QGroupBox();
+    grpStatus->setStyleSheet("QGroupBox { background:#1a1e2a; border:1px solid #2a2d35; border-radius:6px; margin-top:0px; }");
+    QHBoxLayout *statusLay = new QHBoxLayout(grpStatus);
+
+    QLabel *lblActiveStatus = new QLabel();
+    statusLay->addWidget(lblActiveStatus);
+    statusLay->addStretch();
+    mainLay->addWidget(grpStatus);
+
+    // 2. ROBOT SELECTOR BAR
+    QHBoxLayout *selLay = new QHBoxLayout();
+    QComboBox *cmbRobotSelect = new QComboBox();
+    cmbRobotSelect->setStyleSheet("QComboBox { background:#0a0d14; color:#00E5FF; border:1px solid #2a2d35; padding:8px; border-radius:4px; font-weight:bold;} QComboBox::drop-down { border:none; }");
+
+    QPushButton *btnAdd = new QPushButton("+ NEW");
+    btnAdd->setStyleSheet("QPushButton{background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;}");
+    QPushButton *btnDelete = new QPushButton("🗑 DEL");
+    btnDelete->setStyleSheet("QPushButton{background:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px;}");
+
+    selLay->addWidget(new QLabel("ROBOT:"));
+    selLay->addWidget(cmbRobotSelect, 1);
+    selLay->addWidget(btnAdd);
+    selLay->addWidget(btnDelete);
+    mainLay->addLayout(selLay);
+
+    // 3. EDITOR PANEL
+    QGroupBox *grpEdit = new QGroupBox("ROBOT FILES & KINEMATICS");
+    grpEdit->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; font-weight:bold; color:#00E5FF;} QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
+    QGridLayout *eLay = new QGridLayout(grpEdit);
+    eLay->setVerticalSpacing(10);
+
+    QString readStyle = "QLineEdit { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace;}";
+    QString editStyle = "QLineEdit { background:#0a0d14; color:#F59E0B; border:1px solid #F59E0B; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace;}";
+
+    // Textboxes
+    QLineEdit *txtName = new QLineEdit(); txtName->setStyleSheet(readStyle); txtName->setReadOnly(true);
+    QLineEdit *txtPath = new QLineEdit(); txtPath->setStyleSheet(readStyle); txtPath->setReadOnly(true);
+    QLineEdit *txtPrefix = new QLineEdit(); txtPrefix->setStyleSheet(readStyle); txtPrefix->setReadOnly(true);
+
+    // Kinematics Textboxes
+    QLineEdit *txtBX = new QLineEdit(); txtBX->setStyleSheet(readStyle); txtBX->setReadOnly(true);
+    QLineEdit *txtBZ = new QLineEdit(); txtBZ->setStyleSheet(readStyle); txtBZ->setReadOnly(true);
+    QLineEdit *txtAZ = new QLineEdit(); txtAZ->setStyleSheet(readStyle); txtAZ->setReadOnly(true);
+    QLineEdit *txtEZ = new QLineEdit(); txtEZ->setStyleSheet(readStyle); txtEZ->setReadOnly(true);
+    QLineEdit *txtFX = new QLineEdit(); txtFX->setStyleSheet(readStyle); txtFX->setReadOnly(true);
+    QLineEdit *txtWX = new QLineEdit(); txtWX->setStyleSheet(readStyle); txtWX->setReadOnly(true);
+
+    QPushButton *btnBrowse = new QPushButton("📂 BROWSE");
+    btnBrowse->setStyleSheet("QPushButton{background:#30363d; color:white; font-weight:bold; padding:6px 10px; border-radius:3px;}");
+    btnBrowse->setEnabled(false);
+
+    eLay->addWidget(new QLabel("Name:"), 0, 0); eLay->addWidget(txtName, 0, 1, 1, 2);
+    eLay->addWidget(new QLabel("Folder:"), 1, 0); eLay->addWidget(txtPath, 1, 1); eLay->addWidget(btnBrowse, 1, 2);
+    eLay->addWidget(new QLabel("Prefix (e.g. link):"), 2, 0); eLay->addWidget(txtPrefix, 2, 1, 1, 2);
+
+    // Line separator
+    QFrame* line = new QFrame(); line->setFrameShape(QFrame::HLine); line->setStyleSheet("border: 1px solid #30363d;");
+    eLay->addWidget(line, 3, 0, 1, 3);
+
+    eLay->addWidget(new QLabel("Base X Offset:"), 4, 0); eLay->addWidget(txtBX, 4, 1, 1, 2);
+    eLay->addWidget(new QLabel("Base Z Offset:"), 5, 0); eLay->addWidget(txtBZ, 5, 1, 1, 2);
+    eLay->addWidget(new QLabel("Upper Arm Z:"), 6, 0); eLay->addWidget(txtAZ, 6, 1, 1, 2);
+    eLay->addWidget(new QLabel("Elbow Z Drop:"), 7, 0); eLay->addWidget(txtEZ, 7, 1, 1, 2);
+    eLay->addWidget(new QLabel("Forearm X:"), 8, 0); eLay->addWidget(txtFX, 8, 1, 1, 2);
+    eLay->addWidget(new QLabel("Wrist to Flange X:"), 9, 0); eLay->addWidget(txtWX, 9, 1, 1, 2);
+
+    // Action Buttons
+    QHBoxLayout *actLay = new QHBoxLayout();
+    QPushButton *btnEdit = new QPushButton("✏️ EDIT CONFIG");
+    btnEdit->setProperty("isEditing", false);
+    btnEdit->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:10px; border-radius:4px;}");
+
+    QPushButton *btnSet = new QPushButton("✅ LOAD THIS ROBOT");
+    btnSet->setStyleSheet("QPushButton{background:#8B5CF6; color:white; font-weight:bold; padding:10px; border-radius:4px;} QPushButton:hover{background:#7C3AED;}");
+
+    actLay->addWidget(btnEdit);
+    actLay->addWidget(btnSet);
+    eLay->addLayout(actLay, 10, 0, 1, 3);
+
+    mainLay->addWidget(grpEdit);
+    mainLay->addStretch();
+
+    // --- LOGIC & CONNECTIONS ---
+    auto updateActiveLabel = [=]() {
+        if (m_activeRobotIndex >= 0 && m_activeRobotIndex < m_robotConfigs.size()) {
+            lblActiveStatus->setText("🟢 ACTIVE ROBOT: " + m_robotConfigs[m_activeRobotIndex].name);
+            lblActiveStatus->setStyleSheet("color:#10B981; font-weight:bold; font-size:14px; border:none;");
+        }
+    };
+
+    auto syncEditorUI = [=]() {
+        int idx = cmbRobotSelect->currentIndex();
+        if (idx >= 0 && idx < m_robotConfigs.size()) {
+            txtName->setText(m_robotConfigs[idx].name);
+            txtPath->setText(m_robotConfigs[idx].folderPath);
+            txtPrefix->setText(m_robotConfigs[idx].linkPrefix);
+            txtBX->setText(QString::number(m_robotConfigs[idx].base_x));
+            txtBZ->setText(QString::number(m_robotConfigs[idx].base_z));
+            txtAZ->setText(QString::number(m_robotConfigs[idx].arm_z));
+            txtEZ->setText(QString::number(m_robotConfigs[idx].elbow_z));
+            txtFX->setText(QString::number(m_robotConfigs[idx].forearm_x));
+            txtWX->setText(QString::number(m_robotConfigs[idx].wrist_x));
+        }
+    };
+
+    // Initialize Dropdown
+    for (const auto& r : m_robotConfigs) cmbRobotSelect->addItem(r.name);
+    if (m_activeRobotIndex >= 0 && m_activeRobotIndex < m_robotConfigs.size()) {
+        cmbRobotSelect->setCurrentIndex(m_activeRobotIndex);
+    }
+    syncEditorUI();
+    updateActiveLabel();
+
+    connect(cmbRobotSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int idx){
+        if (!btnEdit->property("isEditing").toBool()) syncEditorUI();
+    });
+
+    connect(btnAdd, &QPushButton::clicked, [=](){
+        m_robotConfigs.append(RobotConfigData{"NEW_ROBOT", "/home/texsonics/Documents/toolocct/step1/", "link", 155.0, 470.0, 604.0, 200.0, 640.5, 100.0});
+        cmbRobotSelect->addItem("NEW_ROBOT");
+        cmbRobotSelect->setCurrentIndex(m_robotConfigs.size() - 1);
+        saveRobotConfig();
+    });
+
+    connect(btnDelete, &QPushButton::clicked, [=](){
+        int idx = cmbRobotSelect->currentIndex();
+        if (idx >= 0 && m_robotConfigs.size() > 1) {
+            m_robotConfigs.removeAt(idx);
+            cmbRobotSelect->removeItem(idx);
+            if (m_activeRobotIndex == idx) m_activeRobotIndex = 0;
+            else if (m_activeRobotIndex > idx) m_activeRobotIndex--;
+            saveRobotConfig();
+            syncEditorUI();
+            updateActiveLabel();
+        }
+    });
+
+    connect(btnBrowse, &QPushButton::clicked, [=](){
+        QString dir = QFileDialog::getExistingDirectory(this, "Select Robot STL Folder", txtPath->text(), QFileDialog::ShowDirsOnly);
+        if (!dir.isEmpty()) {
+            if (!dir.endsWith("/")) dir += "/";
+            txtPath->setText(dir);
+        }
+    });
+
+    connect(btnEdit, &QPushButton::clicked, [=](){
+        int idx = cmbRobotSelect->currentIndex();
+        if (idx < 0) return;
+
+        bool isEditing = btnEdit->property("isEditing").toBool();
+        if (!isEditing) {
+            // Unlock UI
+            txtName->setReadOnly(false); txtName->setStyleSheet(editStyle);
+            txtPath->setReadOnly(false); txtPath->setStyleSheet(editStyle);
+            txtPrefix->setReadOnly(false); txtPrefix->setStyleSheet(editStyle);
+            txtBX->setReadOnly(false); txtBX->setStyleSheet(editStyle);
+            txtBZ->setReadOnly(false); txtBZ->setStyleSheet(editStyle);
+            txtAZ->setReadOnly(false); txtAZ->setStyleSheet(editStyle);
+            txtEZ->setReadOnly(false); txtEZ->setStyleSheet(editStyle);
+            txtFX->setReadOnly(false); txtFX->setStyleSheet(editStyle);
+            txtWX->setReadOnly(false); txtWX->setStyleSheet(editStyle);
+
+            btnBrowse->setEnabled(true);
+            cmbRobotSelect->setEnabled(false);
+
+            btnEdit->setText("📂 SAVE CONFIGURATION");
+            btnEdit->setStyleSheet("QPushButton{background:#F59E0B; color:black; font-weight:bold; padding:10px; border-radius:4px;}");
+            btnEdit->setProperty("isEditing", true);
+        } else {
+            // Save Data
+            m_robotConfigs[idx].name = txtName->text();
+            m_robotConfigs[idx].folderPath = txtPath->text();
+            m_robotConfigs[idx].linkPrefix = txtPrefix->text();
+            m_robotConfigs[idx].base_x = txtBX->text().toDouble();
+            m_robotConfigs[idx].base_z = txtBZ->text().toDouble();
+            m_robotConfigs[idx].arm_z = txtAZ->text().toDouble();
+            m_robotConfigs[idx].elbow_z = txtEZ->text().toDouble();
+            m_robotConfigs[idx].forearm_x = txtFX->text().toDouble();
+            m_robotConfigs[idx].wrist_x = txtWX->text().toDouble();
+
+            cmbRobotSelect->setItemText(idx, m_robotConfigs[idx].name);
+            saveRobotConfig();
+
+            // Lock UI
+            txtName->setReadOnly(true); txtName->setStyleSheet(readStyle);
+            txtPath->setReadOnly(true); txtPath->setStyleSheet(readStyle);
+            txtPrefix->setReadOnly(true); txtPrefix->setStyleSheet(readStyle);
+            txtBX->setReadOnly(true); txtBX->setStyleSheet(readStyle);
+            txtBZ->setReadOnly(true); txtBZ->setStyleSheet(readStyle);
+            txtAZ->setReadOnly(true); txtAZ->setStyleSheet(readStyle);
+            txtEZ->setReadOnly(true); txtEZ->setStyleSheet(readStyle);
+            txtFX->setReadOnly(true); txtFX->setStyleSheet(readStyle);
+            txtWX->setReadOnly(true); txtWX->setStyleSheet(readStyle);
+
+            btnBrowse->setEnabled(false);
+            cmbRobotSelect->setEnabled(true);
+
+            btnEdit->setText("✏️ EDIT CONFIG");
+            btnEdit->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:10px; border-radius:4px;}");
+            btnEdit->setProperty("isEditing", false);
+        }
+    });
+
+    connect(btnSet, &QPushButton::clicked, [=](){
+        int idx = cmbRobotSelect->currentIndex();
+        if (idx >= 0) {
+            m_activeRobotIndex = idx;
+            saveRobotConfig();
+            updateActiveLabel();
+
+            // 🚀 SEND ALL PARAMETERS TO MAIN WINDOW
+            emit requestMainLoadRobot(
+                m_robotConfigs[idx].folderPath,
+                m_robotConfigs[idx].linkPrefix,
+                m_robotConfigs[idx].base_x,
+                m_robotConfigs[idx].base_z,
+                m_robotConfigs[idx].arm_z,
+                m_robotConfigs[idx].elbow_z,
+                m_robotConfigs[idx].forearm_x,
+                m_robotConfigs[idx].wrist_x
+                );
         }
     });
 

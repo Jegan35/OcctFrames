@@ -47,8 +47,7 @@ void MainWindow::setupTopBar()
 
     // --- LEFT SIDE: TABS ---
     m_tabButtonGroup = new QButtonGroup(this);
-    QStringList tabNames = {"Step/DXF", "Step Config", "UF", "TF", "CO"};
-
+    QStringList tabNames = {"Step/DXF", "Step Config", "UF", "TF", "CO", "ROBOT"};
     for (int i = 0; i < tabNames.size(); ++i) {
         QPushButton* btn = new QPushButton(tabNames[i], m_topBar);
         btn->setCheckable(true);
@@ -200,6 +199,9 @@ void MainWindow::clearSystemError() {
 // =========================================================================
 // SIGNAL WIRING
 // =========================================================================
+// =========================================================================
+// SIGNAL WIRING
+// =========================================================================
 void MainWindow::setupConnections()
 {
     // Backend Errors -> Top Bar
@@ -257,4 +259,21 @@ void MainWindow::setupConnections()
         if(this->leftPanel && this->leftPanel->getMainOcctWidget())
             this->leftPanel->getMainOcctWidget()->transformLoadedPart(dx, dy, dz, rx, ry, rz);
     });
+
+    // 🚀 THE FIX: Only ONE connection for requestMainLoadRobot, using the static_cast!
+    connect(this->rightPanel,
+            static_cast<void (RightPanel::*)(const QString&, const QString&, double, double, double, double, double, double)>(&RightPanel::requestMainLoadRobot),
+            this,
+            [this](const QString& folderPath, const QString& prefix, double bx, double bz, double az, double ez, double fx, double wx){
+
+                // 1. Update 3D Canvas
+                if(this->leftPanel && this->leftPanel->getMainOcctWidget()) {
+                    this->leftPanel->getMainOcctWidget()->reloadRobot(folderPath, prefix, bx, bz, az, ez, fx, wx);
+                }
+
+                // 2. Update Math Kinematics (KDL Chain)
+                if(this->m_backend) {
+                    this->m_backend->updateRobotKinematics(bx, bz, az, ez, fx, wx);
+                }
+            });
 }

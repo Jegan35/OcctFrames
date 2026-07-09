@@ -38,6 +38,7 @@ public:
     void ToUserFrame(double x, double y, double z, double &ux, double &uy, double &uz);
     int temp_Ik(bool ikfrominit, KDL::Chain chain, KDL::JntArray jointinit, KDL::JntArray jointmin, KDL::JntArray jointmax, KDL::Frame target_cart, KDL::JntArray &jointcur);
     int Fk_tooldir(double x_in, double y_in, double z_in, double &x_out, double &y_out, double &z_out);
+    int RebuildChain(double bx, double bz, double az, double ez, double fx, double wx);
 
     // Solves IK and selects the configuration with the minimum total joint movement
     bool Ik_Optimal_Solution(const KDL::Frame &target_cart, const KDL::JntArray &current_joints, KDL::JntArray &optimal_joints);
@@ -48,6 +49,8 @@ public:
     void UpdateLimits(double j1mn, double j1mx, double j2mn, double j2mx,
                       double j3mn, double j3mx, double j4mn, double j4mx,
                       double j5mn, double j5mx, double j6mn, double j6mx);
+
+
 };
 
 #endif // KINEMATIC_H

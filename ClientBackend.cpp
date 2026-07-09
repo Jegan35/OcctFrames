@@ -45,6 +45,7 @@ void ClientBackend::calculateAndRunHome()
     m_localJointTrajectory.clear();
 
     double start_j[6] = { m_j1, m_j2, m_j3, m_j4, m_j5, m_j6 };
+    // 🚀 Home Position configuration
     double target_j[6] = { 0.0, 0.0, 0.0, 0.0, 90.0, 0.0 };
 
     double D = 0.0;
@@ -54,14 +55,19 @@ void ClientBackend::calculateAndRunHome()
 
     if (D < 0.001) {
         qDebug() << "Already at Home position!";
-        // Force perfect zeros
+        // Force perfect zeros (and 90 for J5)
         m_j1 = 0.0; m_j2 = 0.0; m_j3 = 0.0; m_j4 = 0.0; m_j5 = 90.0; m_j6 = 0.0;
-        KDLJointCur(0) = 0.0; KDLJointCur(1) = 0.0; KDLJointCur(2) = 0.0;
-        KDLJointCur(3) = 0.0; KDLJointCur(4) = 90.0 * (M_PI/180.0); KDLJointCur(5) = 0.0;
+        KDLJointCur(0) = 0.0;
+        KDLJointCur(1) = 0.0;
+        KDLJointCur(2) = 0.0;
+        KDLJointCur(3) = 0.0;
+        KDLJointCur(4) = 90.0 * (M_PI/180.0);
+        KDLJointCur(5) = 0.0;
+
         m_kinematics.Fk();
         updateUIWithUserFrame();
 
-        // 🚀 THE FIX: Force the UI to catch the final perfect zero!
+        // 🚀 THE FIX: Force the UI to catch the final perfect home!
         QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
         return;
     }
@@ -98,10 +104,6 @@ void ClientBackend::calculateAndRunHome()
     m_playbackTimer->start(16);
 }
 
-
-
-
-
 void ClientBackend::setGlobalSpeed(int percent) { m_globalSpeed = percent; }
 void ClientBackend::setCartesianSpeed(double mms) { m_cartSpeed = mms; }
 void ClientBackend::setJointSpeed(double degs) { m_jointSpeed = degs; }
@@ -120,7 +122,6 @@ void ClientBackend::handleButtonPress(const QString &btnText)
     if (!m_jogTimer) return;
     m_activeJogButton = btnText;
 
-    // 🚀 THE FIX 2: Correctly sort Joints, Translations (mm), and Orientations (deg)
     bool isJointJog = btnText.startsWith("J");
     bool isOrientJog = btnText.startsWith("R");
     bool isTransJog = btnText.startsWith("X") || btnText.startsWith("Y") || btnText.startsWith("Z");
@@ -136,6 +137,7 @@ void ClientBackend::handleButtonPress(const QString &btnText)
         m_jogTimer->start(16);
     }
 }
+
 void ClientBackend::handleButtonRelease(const QString &btnText)
 {
     if (!m_jogTimer) return;
@@ -174,12 +176,8 @@ void ClientBackend::executeStepJog()
         else if (m_activeJogButton == "X-") current_user_tcp.p.x(current_user_tcp.p.x() - m_mmIncrement);
         else if (m_activeJogButton == "Y+") current_user_tcp.p.y(current_user_tcp.p.y() + m_mmIncrement);
         else if (m_activeJogButton == "Y-") current_user_tcp.p.y(current_user_tcp.p.y() - m_mmIncrement);
-        // Update this section inside ClientBackend::executeStepJog()
         else if (m_activeJogButton == "Z+") current_user_tcp.p.z(current_user_tcp.p.z() + m_mmIncrement);
         else if (m_activeJogButton == "Z-") current_user_tcp.p.z(current_user_tcp.p.z() - m_mmIncrement);
-
-        // 🚀 THE FIX 2: LOCAL AXIS ROTATION
-        // Multiply on the RIGHT side so the robot rotates smoothly around its own Tool Tip!
         else if (m_activeJogButton == "Rx+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(radInc);
         else if (m_activeJogButton == "Rx-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(-radInc);
         else if (m_activeJogButton == "Ry+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(radInc);
@@ -213,6 +211,7 @@ void ClientBackend::executeStepJog()
     m_kinematics.Fk();
     updateUIWithUserFrame();
 }
+
 // ========================================================
 // 2. CONTINUOUS JOG ENGINE (TOOL FRAME & USER FRAME AWARE)
 // ========================================================
@@ -224,7 +223,7 @@ void ClientBackend::jogTick()
 
     double jStep = actualJointSpeed * dt;
     double cStep = actualCartSpeed * dt;
-    double rStep = actualJointSpeed * dt * (M_PI / 180.0); // Degrees to Radians per tick
+    double rStep = actualJointSpeed * dt * (M_PI / 180.0);
 
     if (m_activeJogButton.startsWith("J")) {
         if (m_activeJogButton == "J1+") m_j1 += jStep;
@@ -248,11 +247,8 @@ void ClientBackend::jogTick()
         else if (m_activeJogButton == "X-") current_user_tcp.p.x(current_user_tcp.p.x() - cStep);
         else if (m_activeJogButton == "Y+") current_user_tcp.p.y(current_user_tcp.p.y() + cStep);
         else if (m_activeJogButton == "Y-") current_user_tcp.p.y(current_user_tcp.p.y() - cStep);
-        // Update this section inside ClientBackend::jogTick()
         else if (m_activeJogButton == "Z+") current_user_tcp.p.z(current_user_tcp.p.z() + cStep);
         else if (m_activeJogButton == "Z-") current_user_tcp.p.z(current_user_tcp.p.z() - cStep);
-
-        // 🚀 THE FIX 3: LOCAL AXIS ROTATION (For Continuous Hold)
         else if (m_activeJogButton == "Rx+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(rStep);
         else if (m_activeJogButton == "Rx-") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotX(-rStep);
         else if (m_activeJogButton == "Ry+") current_user_tcp.M = current_user_tcp.M * KDL::Rotation::RotY(rStep);
@@ -283,18 +279,12 @@ void ClientBackend::jogTick()
     m_kinematics.Fk();
     updateUIWithUserFrame();
 }
-// ========================================================
-// MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
-// ========================================================
-// ========================================================
-// MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
-// ========================================================
+
 // ========================================================
 // MASTER UI UPDATE FUNCTION (Shows TCP, not Flange)
 // ========================================================
 void ClientBackend::updateUIWithUserFrame()
 {
-    // UI should display the exact Tool Center Point (TCP) relative to the User Frame
     KDL::Frame tcp_base = cart * m_toolFrame;
     KDL::Frame tcp_user = m_userFrame.Inverse() * tcp_base;
 
@@ -309,9 +299,6 @@ void ClientBackend::updateUIWithUserFrame()
     setProperty("y", QVariant(tcp_user.p.y()));
     setProperty("z", QVariant(tcp_user.p.z()));
 
-    // =======================================================
-    // 🧠 THE FIX: ONE BRAIN (KDL Unified Math)
-    // =======================================================
     double a, b, c;
     RobotMath::getUnifiedEulerDegrees(tcp_user.M, a, b, c);
 
@@ -323,8 +310,6 @@ void ClientBackend::updateUIWithUserFrame()
     emit telemetryChanged();
 }
 
-
-
 void ClientBackend::stopDxfProgram()
 {
     if (m_playbackTimer && m_playbackTimer->isActive()) {
@@ -333,46 +318,28 @@ void ClientBackend::stopDxfProgram()
     }
 }
 
-
-
-
-
-
-
-
 void ClientBackend::setUserFrame(double x, double y, double z)
 {
     m_userFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
     qDebug() << "BACKEND: User Frame Math Set -> X:" << x << "Y:" << y << "Z:" << z;
 
-    // 🚀 THE FIX: Force the robot to read its current joint angles so the math updates instantly!
     m_kinematics.Fk();
-
     updateUIWithUserFrame();
 }
 
-// Do the same for Tool Frame just to be safe!
 void ClientBackend::setToolFrame(double x, double y, double z)
 {
     m_toolFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
     qDebug() << "BACKEND: Tool Frame Math Set -> X:" << x << "Y:" << y << "Z:" << z;
 
-    m_kinematics.Fk(); // 🚀 Force refresh
-
+    m_kinematics.Fk();
     updateUIWithUserFrame();
 }
-
-
-
-
-
-
-
 
 void ClientBackend::playbackTick()
 {
     // ==========================================
-    // 1. CARTESIAN PLAYBACK WITH TOOL FRAME AND USER FRAME
+    // 1. CARTESIAN PLAYBACK
     // ==========================================
     if (m_isCartesianPlayback) {
         if (m_cartesianTrajectory.empty()) {
@@ -384,7 +351,6 @@ void ClientBackend::playbackTick()
         bool isFinished = false;
         int currentIdx = m_playbackIndex;
 
-        // Clamp to the exact last point before finishing
         if (currentIdx >= m_cartesianTrajectory.size() - 1) {
             currentIdx = m_cartesianTrajectory.size() - 1;
             isFinished = true;
@@ -421,10 +387,7 @@ void ClientBackend::playbackTick()
             m_playbackTimer->stop();
             m_kinematics.Fk();
             updateUIWithUserFrame();
-
-            // 🚀 THE FIX: Force the UI to catch the final point!
             QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
-
             emit programFinished();
             return;
         }
@@ -444,7 +407,6 @@ void ClientBackend::playbackTick()
         bool isFinished = false;
         int currentIdx = m_playbackIndex;
 
-        // Clamp to the exact last point (Perfect 0 and 90)
         if (currentIdx >= m_localJointTrajectory.size() - 1) {
             currentIdx = m_localJointTrajectory.size() - 1;
             isFinished = true;
@@ -465,10 +427,7 @@ void ClientBackend::playbackTick()
             m_playbackTimer->stop();
             m_kinematics.Fk();
             updateUIWithUserFrame();
-
-            // 🚀 THE FIX: Force the UI to catch the final perfect zero!
             QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
-
             emit programFinished();
             return;
         }
@@ -498,14 +457,10 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
 {
     QStringList lines = csvData.split('\n', Qt::SkipEmptyParts);
 
-    // ====================================================================
-    // 🚀 MODE 3: DIRECT IK DEGREES PLAYBACK (Bypass everything)
-    // ====================================================================
     if (mode == "IK Degrees") {
         m_localJointTrajectory.clear();
         for (const QString& line : lines) {
             QString temp = line.trimmed();
-            // Ignore CSV headers and dividers
             if (temp.startsWith("---") || temp.startsWith("J1") || temp.isEmpty()) continue;
 
             QStringList parts = temp.split(',');
@@ -518,23 +473,18 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
         }
 
         if (m_localJointTrajectory.isEmpty()) return;
-
-        m_isCartesianPlayback = false; // Forces it to use Joint Playback Engine
+        m_isCartesianPlayback = false;
         m_playbackIndex = 0;
         m_playbackTimer->start(16);
         return;
     }
 
-    // ====================================================================
-    // 🚀 MODE 2: S-CURVE POINTS BYPASS (Live IK Cartesian playback)
-    // ====================================================================
     if (mode == "S-Curve Points") {
         m_cartesianTrajectory.clear();
         bool rotationSet = false;
 
         for (const QString& line : lines) {
             QString temp = line.trimmed();
-            // Ignore CSV headers and dividers
             if (temp.startsWith("---") || temp.startsWith("SCURVE") || temp.isEmpty()) continue;
 
             QStringList parts = temp.split(',');
@@ -548,10 +498,7 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
                     double ry = parts[4].toDouble() * (M_PI / 180.0);
                     double rz = parts[5].toDouble() * (M_PI / 180.0);
 
-                    // 🚀 THE FIX: Removed RotX(M_PI) here!
-                    // The S-Curve CSV data exported from Mode 1 already contains the corrected (flipped) angles.
                     g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
-
                     rotationSet = true;
                 }
             }
@@ -571,13 +518,9 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
         return;
     }
 
-    // ====================================================================
-    // 🚀 MODE 1: STANDARD CAD POINTS (Full S-Curve, 5-File Export & Math)
-    // ====================================================================
     std::vector<scurve::point> pathvec;
     bool rotationSet = false;
 
-    // 🚀 FIX: Correct coordinates and RESTORE the 180 Flip!
     for (int i = 0; i < lines.size(); i++) {
         QString line = lines[i].trimmed();
         if (line.startsWith("---") || line.startsWith("CAD") || line.isEmpty()) continue;
@@ -588,7 +531,6 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
             double occt_y = parts[1].toDouble();
             double occt_z = parts[2].toDouble();
 
-            // 1. RADIAL EXPANSION
             if (m_pathOffsetX != 0.0) {
                 double r = std::sqrt(occt_x * occt_x + occt_y * occt_y);
                 if (r > 0.001) {
@@ -599,7 +541,6 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
             }
             occt_z = occt_z + m_pathOffsetZ;
 
-            // 2. LINEAR SHIFT
             occt_x = occt_x + m_liveOffsetX;
             occt_y = occt_y + m_liveOffsetY;
             occt_z = occt_z + m_liveOffsetZ;
@@ -607,15 +548,11 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
             pathvec.push_back({occt_x, occt_y, occt_z});
 
             if (parts.size() >= 6 && !rotationSet) {
-                // 1. Read all three values perfectly
                 double rx = parts[3].toDouble() * (M_PI / 180.0);
                 double ry = parts[4].toDouble() * (M_PI / 180.0);
                 double rz = parts[5].toDouble() * (M_PI / 180.0);
 
-                // 2. 🚀 NO MORE RotX(M_PI) HERE!
-                // The CAD file already contains the exact, 100% correct orientation.
                 g_drawingRotation = KDL::Rotation::EulerZYX(rz, ry, rx);
-
                 rotationSet = true;
             }
         }
@@ -702,9 +639,6 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
 
     m_cartesianTrajectory = trajectoryPlanner.create_point_for_every_ms_path(maxVel, 500.0, 0.0, 0.0, pathvec);
 
-    // ====================================================================
-    // CSV EXPORT LOGIC
-    // ====================================================================
     QString basePath = "/home/texsonics/Videos/";
     QFile fileFull(basePath + "full_robot_trajectory.csv");
     QFile fileCAD(basePath + "cadpoints.csv");
@@ -801,4 +735,39 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
     m_isCartesianPlayback = true;
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
+}
+
+
+void ClientBackend::updateRobotKinematics(double bx, double bz, double az, double ez, double fx, double wx)
+{
+    // 1. Tell kinematic engine to reconstruct internal KDL chain
+    m_kinematics.RebuildChain(bx, bz, az, ez, fx, wx);
+
+    // 2. Widen the IK Joint Limits!
+    m_kinematics.UpdateLimits(
+        -170, 170,  // J1 Base
+        -110, 120,  // J2 Shoulder
+        -108, 148,  // J3 Elbow
+        -200, 200,  // J4 Forearm
+        -120, 120,  // J5 Wrist Pitch
+        -350, 350   // J6 Flange
+        );
+
+    // ====================================================================
+    // 🚀 THE FIX: OVERRIDE THE GLOBALS USED BY runDxfProgram()
+    // When RebuildChain runs, KDL destroys and recreates KDLJointCur to zeros.
+    // We MUST restore the live angles back into the KDL array to prevent desync!
+    // ====================================================================
+    KDLJointCur(0) = m_j1 * (M_PI / 180.0);
+    KDLJointCur(1) = m_j2 * (M_PI / 180.0);
+    KDLJointCur(2) = m_j3 * (M_PI / 180.0);
+    KDLJointCur(3) = m_j4 * (M_PI / 180.0);
+    KDLJointCur(4) = m_j5 * (M_PI / 180.0);
+    KDLJointCur(5) = m_j6 * (M_PI / 180.0);
+
+    // 3. Force a math refresh so UI reflects new kinematics immediately
+    m_kinematics.Fk();
+    updateUIWithUserFrame();
+
+    qDebug() << "Backend kinematics updated with new robot dimensions & limits.";
 }

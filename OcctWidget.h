@@ -45,6 +45,8 @@ class OcctWidget : public QWidget
 {
     Q_OBJECT
 public:
+    void reloadRobot(const QString& folderPath, const QString& linkPrefix,
+                     double bx, double bz, double az, double ez, double fx, double wx);
     explicit OcctWidget(QWidget *parent = nullptr);
     ~OcctWidget() override;
     bool hasLoadedPart() const { return !myLoadedPart.IsNull(); }
@@ -84,6 +86,7 @@ public:
     void clearTargetMarker();
     void calculateCustomStartPoint(double percentage);
     void calculateCustomEndPoint(double percentage);
+    void reloadRobot(const QString& folderPath);
 
 signals:
     void statusUpdate(const QString& msg);
@@ -106,6 +109,10 @@ protected:
 
 private:
 
+    QString m_robotFolderPath = "/home/texsonics/Documents/toolocct/step1/";
+    QString m_robotLinkPrefix = "link";
+    double m_rob_bx = 155.0, m_rob_bz = 470.0, m_rob_az = 604.0;
+    double m_rob_ez = 200.0, m_rob_fx = 640.5, m_rob_wx = 100.0;
     TopoDS_Edge m_customStartEdge;
     TopoDS_Edge m_customEndEdge;
 

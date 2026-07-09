@@ -41,6 +41,13 @@ public:
 // ==========================================
 // TCP CALIBRATION MATH STRUCTURES
 // ==========================================
+struct RobotConfigData {
+    QString name;
+    QString folderPath;
+    QString linkPrefix; // e.g., "link", "links1", "part"
+    // Core Kinematic Dimensions (based on your existing KDL setup)
+    double base_x, base_z, arm_z, elbow_z, forearm_x, wrist_x;
+};
 struct Matrix3x3 {
     double m[3][3];
 };
@@ -86,6 +93,9 @@ signals:
     void requestClearTargetMarker();
     void requestMainTransformPart(double dx, double dy, double dz, double rx, double ry, double rz);
     void requestClosePanel();
+    void requestMainLoadRobot(const QString& folderPath);
+    void requestMainLoadRobot(const QString& folderPath, const QString& linkPrefix,
+                              double bx, double bz, double az, double ez, double fx, double wx);
 
 private:
     void setupUI();
@@ -114,6 +124,14 @@ private:
 
     int solve6x6(double A[6][6], double B[6], double x[6]);
     Vector3 calibrateTCPRobust(const QList<RobotPose>& poses);
+
+    QList<RobotConfigData> m_robotConfigs;
+    int m_activeRobotIndex = 0;
+
+    QWidget* buildRobotWidget();
+    void saveRobotConfig();
+    void loadRobotConfig();
+    void refreshRobotUI();
 
 private:
     ClientBackend *m_backend = nullptr;

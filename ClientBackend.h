@@ -21,7 +21,7 @@ public:
     void setUserFrame(double x, double y, double z);
     void setPathOffset(double px, double py, double pz);
     void setLiveRuntimeOffset(double ox, double oy, double oz);
-
+    void updateRobotKinematics(double bx, double bz, double az, double ez, double fx, double wx);
 signals:
     void updateRobot3DView(double j1, double j2, double j3, double j4, double j5, double j6);
     void telemetryChanged();
