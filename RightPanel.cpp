@@ -404,7 +404,7 @@ QWidget* RightPanel::buildDxfFileWidget()
         double dist = txtDistance->text().toDouble();
         if (dist <= 0.001) dist = 2.0;
         m_dxfPreviewWidget->processCurrentSelection(dist);
-        lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText());
+        lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText(0));
     });
 
     // 3. Full Shape Button
@@ -413,7 +413,7 @@ QWidget* RightPanel::buildDxfFileWidget()
         if (dist <= 0.001) dist = 2.0;
         if (m_dxfPreviewWidget) {
             m_dxfPreviewWidget->processAllEdges(dist);
-            lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText());
+            lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText(0));
         }
     });
 
@@ -765,6 +765,8 @@ void RightPanel::refreshFrameUI()
     QString editStyle = "QLineEdit { background:#0a0d14; color:#FFFFFF; border:1px solid #F59E0B; border-radius:2px; padding:2px; font-size:13px; font-family:monospace; }";
     QString lblStyle = "QLabel { color:#9CA3AF; font-weight:bold; font-size:12px; border:none; background:transparent; }";
 
+    int taskCounter = 1;
+
     for (int i = 0; i < m_userFrames.size(); i++) {
         QWidget *row = new QWidget();
         row->setStyleSheet("background:#1a1e2a; border:1px solid #2a2d35; border-radius:4px;");
@@ -780,9 +782,13 @@ void RightPanel::refreshFrameUI()
         }
 
         QLabel *lbl = new QLabel();
-        if (m_activeFrameIndex == i) {
-            lbl->setText(QString("★ UF %1 (SET)").arg(i + 1));
-            lbl->setStyleSheet("color:#10B981; font-weight:bold; font-size:13px; border:none;");
+        bool isTaskActive = m_selectedUFs.contains(i);
+
+        if (isTaskActive) {
+            // 🚀 Use the dynamic counter instead of the raw index!
+            lbl->setText(QString("★ TASK %1 (UF %2)").arg(taskCounter).arg(i + 1));
+            lbl->setStyleSheet("color:#10B981; font-weight:bold; font-size:12px; border:none;");
+            taskCounter++; // Only count up if the task is active
         } else {
             lbl->setText(QString("USERFRAME %1").arg(i + 1));
             lbl->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:12px; border:none;");
@@ -806,11 +812,9 @@ void RightPanel::refreshFrameUI()
         btnEditSave->setProperty("isEditing", false);
         btnEditSave->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:4px 10px; border-radius:3px;}");
 
-        // ✅ Using [=] to capture all local variables automatically by value.
         connect(btnEditSave, &QPushButton::clicked, this, [=](){
             bool isEditing = btnEditSave->property("isEditing").toBool();
             if (!isEditing) {
-                // 1️⃣ EDIT MODE: Enable inputs
                 xEdit->setReadOnly(false); xEdit->setStyleSheet(editStyle);
                 yEdit->setReadOnly(false); yEdit->setStyleSheet(editStyle);
                 zEdit->setReadOnly(false); zEdit->setStyleSheet(editStyle);
@@ -819,8 +823,6 @@ void RightPanel::refreshFrameUI()
                 btnEditSave->setProperty("isEditing", true);
                 xEdit->setFocus();
             } else {
-                // 2️⃣ SAVE MODE: Update data
-                // 2️⃣ SAVE MODE: Update data
                 m_userFrames[i].x = xEdit->text().toDouble();
                 m_userFrames[i].y = yEdit->text().toDouble();
                 m_userFrames[i].z = zEdit->text().toDouble();
@@ -829,67 +831,69 @@ void RightPanel::refreshFrameUI()
                 xEdit->setReadOnly(true); xEdit->setStyleSheet(readOnlyStyle);
                 yEdit->setReadOnly(true); yEdit->setStyleSheet(readOnlyStyle);
                 zEdit->setReadOnly(true); zEdit->setStyleSheet(readOnlyStyle);
-
                 btnEditSave->setText("✏️EDIT");
                 btnEditSave->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:4px 10px; border-radius:3px;}");
                 btnEditSave->setProperty("isEditing", false);
 
-                if (m_activeFrameIndex == i) {
-                    // 🚀 THE FIX 2A: Sync with Step Control Tab Text Boxes
-                    QLineEdit* stepX = this->findChild<QLineEdit*>("stepTxtX");
-                    if(stepX) stepX->setText(QString::number(m_userFrames[i].x));
+                // If this is currently active, sync it
+                if (m_selectedUFs.contains(i)) {
+                    emit requestMainSetUserFrame(i, true, m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
 
-                    QLineEdit* stepY = this->findChild<QLineEdit*>("stepTxtY");
-                    if(stepY) stepY->setText(QString::number(m_userFrames[i].y));
-
-                    QLineEdit* stepZ = this->findChild<QLineEdit*>("stepTxtZ");
-                    if(stepZ) stepZ->setText(QString::number(m_userFrames[i].z));
-
-                    // 🚀 Sync the 3D Graphic in Step Control
-                    if (m_stepPreviewWidget) m_stepPreviewWidget->transformLoadedPart(m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z, 0, 0, 0);
-
-                    // Sync the DXF preview and Backend
-                    if (m_dxfPreviewWidget) m_dxfPreviewWidget->setUserFrameOrigin(m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
-                    emit requestMainSetUserFrame(m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
-                    updateOriginLabel(m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
+                    // If it's the currently viewed task in Step Control, update boxes
+                    if (m_cmbTargetTask && m_cmbTargetTask->currentData().toInt() == i) {
+                        QLineEdit* stepX = this->findChild<QLineEdit*>("stepTxtX");
+                        if(stepX) stepX->setText(QString::number(m_userFrames[i].x));
+                        QLineEdit* stepY = this->findChild<QLineEdit*>("stepTxtY");
+                        if(stepY) stepY->setText(QString::number(m_userFrames[i].y));
+                        QLineEdit* stepZ = this->findChild<QLineEdit*>("stepTxtZ");
+                        if(stepZ) stepZ->setText(QString::number(m_userFrames[i].z));
+                    }
                 }
             }
         });
         rLay->addWidget(btnEditSave);
 
-        QPushButton *btnSet = new QPushButton("SET");
-        btnSet->setStyleSheet("QPushButton{background:#00E5FF; color:black; font-weight:bold; padding:4px 10px; border-radius:3px;}");
-        connect(btnSet, &QPushButton::clicked, this, [this, i](){
-            m_activeFrameIndex = i;
-            double fx = m_userFrames[i].x;
-            double fy = m_userFrames[i].y;
-            double fz = m_userFrames[i].z;
+        // 🚀 THE MAGIC MULTI-TASK TOGGLE BUTTON
+        // 🚀 THE MAGIC MULTI-TASK TOGGLE BUTTON (Made Compact!)
+        QPushButton *btnToggleTask = new QPushButton();
+        if (isTaskActive) {
+            btnToggleTask->setText("❌ REMOVE"); // Compact Text
+            btnToggleTask->setStyleSheet("QPushButton{background:#EF4444; color:white; font-weight:bold; padding:4px 8px; border-radius:3px;}");
+        } else {
+            btnToggleTask->setText("✅ SELECT"); // Compact Text
+            btnToggleTask->setStyleSheet("QPushButton{background:#10B981; color:black; font-weight:bold; padding:4px 8px; border-radius:3px;}");
+        }
 
-            // 🚀 THE FIX 2B: Sync with Step Control Tab Text Boxes
-            QLineEdit* stepX = this->findChild<QLineEdit*>("stepTxtX");
-            if(stepX) stepX->setText(QString::number(fx));
+        connect(btnToggleTask, &QPushButton::clicked, this, [this, i](){
+            if (m_selectedUFs.contains(i)) {
+                m_selectedUFs.remove(i);
+                emit requestMainSetUserFrame(i, false, m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
+            } else {
+                m_selectedUFs.insert(i);
+                emit requestMainSetUserFrame(i, true, m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
+            }
 
-            QLineEdit* stepY = this->findChild<QLineEdit*>("stepTxtY");
-            if(stepY) stepY->setText(QString::number(fy));
+            // 🚀 REPOPULATE DROPDOWN WITH UNIVERSAL MATH LOGIC
+            if (m_cmbTargetTask) {
+                m_cmbTargetTask->clear();
+                int tCount = 1;
+                // Loop through ALL frames in order to guarantee correct sorting
+                for (int k = 0; k < m_userFrames.size(); k++) {
+                    if (m_selectedUFs.contains(k)) {
+                        m_cmbTargetTask->addItem(QString("TASK %1 (UF %2)").arg(tCount).arg(k + 1), k);
+                        tCount++;
+                    }
+                }
+            }
 
-            QLineEdit* stepZ = this->findChild<QLineEdit*>("stepTxtZ");
-            if(stepZ) stepZ->setText(QString::number(fz));
-
-            // 🚀 Sync the 3D Graphic in Step Control
-            if (m_stepPreviewWidget) m_stepPreviewWidget->transformLoadedPart(fx, fy, fz, 0, 0, 0);
-
-            if(m_dxfPreviewWidget) m_dxfPreviewWidget->setUserFrameOrigin(fx, fy, fz);
-            emit requestMainSetUserFrame(fx, fy, fz);
-            updateOriginLabel(fx, fy, fz);
             saveUserFramesConfig();
             refreshFrameUI();
         });
-        rLay->addWidget(btnSet);
+        rLay->addWidget(btnToggleTask);
 
         m_frameListLayout->addWidget(row);
     }
 }
-
 // ============================================================
 //  HELPERS & QSETTINGS
 // ============================================================
@@ -939,7 +943,7 @@ void RightPanel::loadUserFramesConfig()
             m_userFrames.append(UserFrameData{x, y, z});
         }
     } else {
-        m_userFrames.append(UserFrameData{0.0, -800.0, 600.0});
+        m_userFrames.append(UserFrameData{0.0, 0.0, 0.0});
     }
     settings.endArray();
     m_activeFrameIndex = settings.value("ActiveFrameIndex", 0).toInt();
@@ -1905,33 +1909,47 @@ QWidget* RightPanel::buildStepControlWidget()
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(10);
 
-    // --- ROW 1: Load, Pick Origin, Clear ---
+    // --- ROW 1: Target Task, Load, Clear ---
     QHBoxLayout *row1 = new QHBoxLayout();
+
+    QLabel *lblTask = new QLabel("TARGET TASK:");
+    lblTask->setStyleSheet("color:#00E5FF; font-weight:bold; font-size:11px;");
+
+    m_cmbTargetTask = new QComboBox();
+    m_cmbTargetTask->setStyleSheet("background:#161b22; color:white; font-weight:bold; border:1px solid #00E5FF; padding:4px;");
+
+    // Populate with initially active tasks using Universal Math Logic
+    int initTaskCount = 1;
+    for (int i = 0; i < m_userFrames.size(); i++) {
+        if (m_selectedUFs.contains(i)) {
+            m_cmbTargetTask->addItem(QString("TASK %1 (UF %2)").arg(initTaskCount).arg(i + 1), i);
+            initTaskCount++;
+        }
+    }
 
     QPushButton *btnLoadStep = new QPushButton("📂 LOAD STEP");
     btnLoadStep->setStyleSheet("background:#1565C0; color:white; font-weight:bold; padding:8px; border-radius:4px;");
 
-    QPushButton *btnPickOrigin = new QPushButton("🎯 SET ORIGIN");
-    btnPickOrigin->setStyleSheet("background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;");
-
-    // 🚀 THE FIX 1: புதிய CLEAR STEP பட்டன்
-    QPushButton *btnClearStep = new QPushButton("🗑 CLEAR STEP");
+    QPushButton *btnClearStep = new QPushButton("🗑 CLEAR PART");
     btnClearStep->setStyleSheet("background:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px;");
 
+    QPushButton *btnPickOrigin = new QPushButton("🎯 ORIGIN");
+    btnPickOrigin->setStyleSheet("background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;");
+
+    row1->addWidget(lblTask);
+    row1->addWidget(m_cmbTargetTask, 1);
     row1->addWidget(btnLoadStep);
     row1->addWidget(btnPickOrigin);
     row1->addWidget(btnClearStep);
     ctrlLay->addLayout(row1);
 
     // --- ROW 2: Manual Transform & Rotation ---
-    // --- ROW 2: Manual Transform & Rotation ---
-    QGroupBox *grpTrans = new QGroupBox("MANUAL PART TRANSFORM & ROTATION");
+    QGroupBox *grpTrans = new QGroupBox("MANUAL PART TRANSFORM & ROTATION (FOR SELECTED TASK)");
     grpTrans->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; color:#00E5FF; font-weight:bold; padding-top:15px; }");
     QGridLayout *gLay = new QGridLayout(grpTrans);
 
     QString editStyle = "QLineEdit { background:#161b22; color:#FFFFFF; border:1px solid #30363d; border-radius:3px; padding:6px; font-weight:bold; } QLineEdit:focus { border:1px solid #00E5FF; }";
 
-    // 🚀 THE FIX 1: Set Object Names so other tabs can find and update them!
     QLineEdit *txtX = new QLineEdit("0.0"); txtX->setStyleSheet(editStyle); txtX->setObjectName("stepTxtX");
     QLineEdit *txtY = new QLineEdit("0.0"); txtY->setStyleSheet(editStyle); txtY->setObjectName("stepTxtY");
     QLineEdit *txtZ = new QLineEdit("0.0"); txtZ->setStyleSheet(editStyle); txtZ->setObjectName("stepTxtZ");
@@ -1947,7 +1965,7 @@ QWidget* RightPanel::buildStepControlWidget()
     gLay->addWidget(new QLabel("Rot Ry (deg):"), 1, 2); gLay->addWidget(txtRy, 1, 3);
     gLay->addWidget(new QLabel("Rot Rz (deg):"), 1, 4); gLay->addWidget(txtRz, 1, 5);
 
-    QPushButton *btnApplyTransform = new QPushButton("APPLY\nTRANSFORM");
+    QPushButton *btnApplyTransform = new QPushButton("APPLY");
     btnApplyTransform->setStyleSheet("background:#8B5CF6; color:white; font-weight:bold; padding:8px; border-radius:3px;");
     gLay->addWidget(btnApplyTransform, 0, 6, 2, 1);
 
@@ -1957,64 +1975,58 @@ QWidget* RightPanel::buildStepControlWidget()
     // ==========================================
     // 🔗 SYNCHRONIZED BUTTON CONNECTIONS
     // ==========================================
-    // ==========================================
-    // 🔗 SYNCHRONIZED BUTTON CONNECTIONS
-    // ==========================================
+
+    // 🚀 LOAD STEP FOR SPECIFIC TASK
     connect(btnLoadStep, &QPushButton::clicked, this, [=](){
+        if (m_cmbTargetTask->count() == 0) {
+            QMessageBox::warning(this, "No Task", "Please select/enable a UserFrame Task in the UF tab first!");
+            return;
+        }
+
+        int targetUfIndex = m_cmbTargetTask->currentData().toInt();
         QString filePath = QFileDialog::getOpenFileName(this, "Select CAD File", "", "CAD Files (*.step *.stp *.dxf *.STEP *.DXF *.STP)");
+
         if (!filePath.isEmpty()) {
+            double ufX = m_userFrames[targetUfIndex].x;
+            double ufY = m_userFrames[targetUfIndex].y;
+            double ufZ = m_userFrames[targetUfIndex].z;
 
-            m_stepPreviewWidget->loadStepFile(filePath.toStdString());
-            m_stepPreviewWidget->setSelectionMode(0);
+            // Load to specific UF Task
+            if(m_stepPreviewWidget) m_stepPreviewWidget->loadStepFile(filePath.toStdString(), targetUfIndex);
+            if(m_dxfPreviewWidget) m_dxfPreviewWidget->loadStepFile(filePath.toStdString(), targetUfIndex);
 
-            if (m_dxfPreviewWidget) m_dxfPreviewWidget->loadStepFile(filePath.toStdString());
-            emit requestMainLoadStep(filePath);
+            emit requestMainLoadStep(filePath, targetUfIndex);
 
-            double ufX = 0.0, ufY = 0.0, ufZ = 0.0;
-            if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
-                ufX = m_userFrames[m_activeFrameIndex].x;
-                ufY = m_userFrames[m_activeFrameIndex].y;
-                ufZ = m_userFrames[m_activeFrameIndex].z;
-            }
-
+            // Update UI to reflect the UserFrame
             txtX->setText(QString::number(ufX));
             txtY->setText(QString::number(ufY));
             txtZ->setText(QString::number(ufZ));
-            txtRx->setText("0.0");
-            txtRy->setText("0.0");
-            txtRz->setText("0.0");
-
-            m_stepPreviewWidget->transformLoadedPart(ufX, ufY, ufZ, 0, 0, 0);
-            if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(ufX, ufY, ufZ, 0, 0, 0);
-            emit requestMainTransformPart(ufX, ufY, ufZ, 0, 0, 0);
-
-            // =======================================================
-            // 🚀 THE FIX: AUTOMATICALLY TRIGGER THE USER FRAME UPDATE!
-            // =======================================================
-            // Tell the backend to shift the math origin immediately!
-            emit requestMainSetUserFrame(ufX, ufY, ufZ);
-
-            // Sync the yellow label in the DXF tab so the user sees it is active
-            updateOriginLabel(ufX, ufY, ufZ);
-            // =======================================================
+            txtRx->setText("0.0"); txtRy->setText("0.0"); txtRz->setText("0.0");
         }
     });
-    // 🚀 THE FIX 1 (Implementation): Clear Button Logic
+
+    // 🚀 CLEAR TASK
     connect(btnClearStep, &QPushButton::clicked, this, [=](){
-        if (m_stepPreviewWidget) m_stepPreviewWidget->clearLoadedPart();
-        if (m_dxfPreviewWidget) m_dxfPreviewWidget->clearLoadedPart();
-        emit requestMainClearStep(); // Main Graph-ல் இருந்தும் அழியும்
+        if (m_cmbTargetTask->count() == 0) return;
+        int targetUfIndex = m_cmbTargetTask->currentData().toInt();
+
+        if (m_stepPreviewWidget) m_stepPreviewWidget->clearLoadedPart(targetUfIndex);
+        if (m_dxfPreviewWidget) m_dxfPreviewWidget->clearLoadedPart(targetUfIndex);
+        emit requestMainClearStep(targetUfIndex);
 
         txtX->setText("0.0"); txtY->setText("0.0"); txtZ->setText("0.0");
         txtRx->setText("0.0"); txtRy->setText("0.0"); txtRz->setText("0.0");
     });
 
     connect(btnPickOrigin, &QPushButton::clicked, this, [this](){
-        m_stepPreviewWidget->enableOriginSelectionMode();
+        if(m_stepPreviewWidget) m_stepPreviewWidget->enableOriginSelectionMode();
     });
 
-    // 🚀 THE FIX 2: Apply Transform + Sync User Frame
+    // 🚀 APPLY TRANSFORM TO TASK
     connect(btnApplyTransform, &QPushButton::clicked, this, [=](){
+        if (m_cmbTargetTask->count() == 0) return;
+        int targetUfIndex = m_cmbTargetTask->currentData().toInt();
+
         double dx = txtX->text().toDouble();
         double dy = txtY->text().toDouble();
         double dz = txtZ->text().toDouble();
@@ -2022,27 +2034,50 @@ QWidget* RightPanel::buildStepControlWidget()
         double ry = txtRy->text().toDouble();
         double rz = txtRz->text().toDouble();
 
-        // 1. Rotate & Move in Graphics
-        m_stepPreviewWidget->transformLoadedPart(dx, dy, dz, rx, ry, rz);
-        if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(dx, dy, dz, rx, ry, rz);
-        emit requestMainTransformPart(dx, dy, dz, rx, ry, rz);
+        if (m_stepPreviewWidget) m_stepPreviewWidget->transformLoadedPart(targetUfIndex, dx, dy, dz, rx, ry, rz);
+        if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(targetUfIndex, dx, dy, dz, rx, ry, rz);
+        emit requestMainTransformPart(targetUfIndex, dx, dy, dz, rx, ry, rz);
 
-        // 🚀 THE FIX: We must tell the Backend that the User Frame changed!
-        emit requestMainSetUserFrame(dx, dy, dz);
+        // Tell Backend the UF moved
+        emit requestMainSetUserFrame(targetUfIndex, true, dx, dy, dz);
 
-        // 2. Sync to Active User Frame Automatically!
-        if (m_activeFrameIndex >= 0 && m_activeFrameIndex < m_userFrames.size()) {
-            m_userFrames[m_activeFrameIndex].x = dx;
-            m_userFrames[m_activeFrameIndex].y = dy;
-            m_userFrames[m_activeFrameIndex].z = dz;
+        // Sync internally
+        m_userFrames[targetUfIndex].x = dx;
+        m_userFrames[targetUfIndex].y = dy;
+        m_userFrames[targetUfIndex].z = dz;
+        saveUserFramesConfig();
+        refreshFrameUI();
+    });
+    // 🚀 THE FIX: Sync the Dropdown with the XYZ Text Boxes
+    connect(m_cmbTargetTask, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        if (index < 0) {
+            txtX->setText("0.0"); txtY->setText("0.0"); txtZ->setText("0.0");
+            return;
+        }
 
-            saveUserFramesConfig();
-            refreshFrameUI();
+        // Extract the true User Frame index from the combo box item data
+        int targetUfIndex = m_cmbTargetTask->itemData(index).toInt();
+
+        if (targetUfIndex >= 0 && targetUfIndex < m_userFrames.size()) {
+            txtX->setText(QString::number(m_userFrames[targetUfIndex].x));
+            txtY->setText(QString::number(m_userFrames[targetUfIndex].y));
+            txtZ->setText(QString::number(m_userFrames[targetUfIndex].z));
+            txtRx->setText("0.0");
+            txtRy->setText("0.0");
+            txtRz->setText("0.0");
         }
     });
 
+    // 🚀 Force the UI to load the coordinates for whatever task is selected on boot
+    if (m_cmbTargetTask->count() > 0) {
+        int initialUfIndex = m_cmbTargetTask->itemData(m_cmbTargetTask->currentIndex()).toInt();
+        txtX->setText(QString::number(m_userFrames[initialUfIndex].x));
+        txtY->setText(QString::number(m_userFrames[initialUfIndex].y));
+        txtZ->setText(QString::number(m_userFrames[initialUfIndex].z));
+    }
     return w;
 }
+
 
 // ============================================================
 //  ROBOT CONFIG SAVE/LOAD (UPGRADED)

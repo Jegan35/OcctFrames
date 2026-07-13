@@ -421,6 +421,18 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /usr/include/kdl/frames.hpp /usr/include/kdl/utilities/kdl-config.h \
  /usr/include/kdl/utilities/utility.h \
  /usr/include/kdl/utilities/kdl-config.h /usr/include/kdl/frames.inl \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSet \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QComboBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractitemmodel.h \
  /home/texsonics/Documents/toolocct/ClientBackend.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QObject \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QTimer \
@@ -1313,8 +1325,6 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QFrame \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QSlider \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qslider.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractslider.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QScrollArea \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qscrollarea.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QApplication \
@@ -1342,15 +1352,6 @@ CMakeFiles/appOCCT.dir/RightPanel.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qdialog.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSettings \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qsettings.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QComboBox \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
- /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractitemmodel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QMessageBox \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qmessagebox.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qdialogbuttonbox.h \

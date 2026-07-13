@@ -674,6 +674,18 @@ CMakeFiles/appOCCT.dir/ClientBackend.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSet \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QComboBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractitemmodel.h \
  /home/texsonics/Documents/toolocct/OcctWidget.h \
  /usr/local/include/opencascade/AIS_InteractiveContext.hxx \
  /usr/local/include/opencascade/AIS_DataMapOfIOStatus.hxx \

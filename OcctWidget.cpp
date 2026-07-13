@@ -242,7 +242,7 @@ void OcctWidget::initOCCT()
     }
 }
 
-void OcctWidget::loadStepFile(const std::string& filePath)
+void OcctWidget::loadStepFile(const std::string& filePath, int ufIndex)
 {
     if (myView.IsNull()) initOCCT();
     clearSelections();
@@ -288,18 +288,16 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         // =======================================================
         // 🚀 DXF READER (Strict Pair-Reading & Ghost Line Fix)
         // =======================================================
-        bool isCodeLine = true; // Tracks if we are reading a Code or a Value
+        bool isCodeLine = true;
 
         while (!in.atEnd()) {
             QString line = in.readLine().trimmed();
 
             if (isCodeLine) {
                 currentCode = line.toInt();
-                isCodeLine = false; // Next line will be the value
+                isCodeLine = false;
             } else {
-                // We are reading a VALUE line
                 if (currentCode == 0) {
-                    // Code 0 ALWAYS means a new entity is starting
                     if (line == "LINE") {
                         if (inLine) {
                             if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
@@ -307,14 +305,12 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                         inLine = true;
                         x1 = y1 = z1 = x2 = y2 = z2 = 0.0;
                     } else {
-                        // Some other entity started (ARC, CIRCLE, EOF, etc.)
                         if (inLine) {
                             if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
-                            inLine = false; // Turn off to prevent bleed-over!
+                            inLine = false;
                         }
                     }
                 } else if (inLine) {
-                    // We are actively inside a LINE, read its coordinates
                     double val = line.toDouble();
                     if (currentCode == 10) x1 = val;
                     else if (currentCode == 20) y1 = val;
@@ -323,18 +319,16 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                     else if (currentCode == 21) y2 = val;
                     else if (currentCode == 31) z2 = val;
                 }
-
-                isCodeLine = true; // Next line will be a code
+                isCodeLine = true;
             }
         }
 
-        // Catch the very last line if the file ends abruptly
         if (inLine) {
             if (saveEdgeSafely(x1, y1, z1, x2, y2, z2)) edgesAdded++;
         }
+
         if (edgesAdded > 0) {
             try {
-
                 Bnd_Box boundingBox;
                 BRepBndLib::Add(comp, boundingBox);
                 Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
@@ -344,26 +338,28 @@ void OcctWidget::loadStepFile(const std::string& filePath)
                 gp_Trsf centerTrsf;
                 centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
 
-
                 TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(comp, centerTrsf).Shape();
-                myLoadedPart = new AIS_Shape(centeredShape);
+                Handle(AIS_Shape) newPart = new AIS_Shape(centeredShape);
 
-                // =========================================================
-                // 🚀 THE FIX: EXTREME HIGH CONTRAST (CHARCOAL BLACK)
-                // This is a very dark slate/black. It will perfectly contrast
-                // against your light background AND the bright red path.
-                // =========================================================
-                Quantity_Color dxfDarkColor(0.10, 0.10, 0.12, Quantity_TOC_RGB);
+                myContext->SetColor(newPart, Quantity_NOC_GRAY75, Standard_False);
+                myContext->SetMaterial(newPart, Graphic3d_NOM_ALUMINIUM, Standard_False);
+                myContext->SetDisplayMode(newPart, 1, Standard_False);
 
-                myContext->SetColor(myLoadedPart, dxfDarkColor, Standard_False);
-                myContext->SetWidth(myLoadedPart, 1.5, Standard_False);
+                // 🚀 MULTI-TASK: Assign to the specific UserFrame map slot!
+                myLoadedParts[ufIndex] = newPart;
 
-                myContext->Display(myLoadedPart, Standard_True);
+                // 🚀 MULTI-TASK: Move to its assigned UserFrame Origin
+                if (myUFOrigins.count(ufIndex)) {
+                    gp_Trsf moveTrsf;
+                    moveTrsf.SetTranslation(gp_Vec(myUFOrigins[ufIndex].X(), myUFOrigins[ufIndex].Y(), myUFOrigins[ufIndex].Z()));
+                    myContext->SetLocation(newPart, TopLoc_Location(moveTrsf));
+                }
 
+                myContext->Display(newPart, Standard_True);
                 if (myRole == OcctWidget::SideRole) { myView->FitAll(); }
-                myView->Redraw();
                 setSelectionMode(myCurrentSelectionMode);
-                emit statusUpdate(QString("✅ DXF Centered & Loaded (%1 Lines).").arg(edgesAdded));
+
+                emit statusUpdate(QString("✅ DXF Centered & Loaded to Task %1 (%2 Lines).").arg(ufIndex + 1).arg(edgesAdded));
             } catch (...) {
                 emit statusUpdate("❌ Error: DXF contains severely corrupted geometry.");
             }
@@ -393,7 +389,6 @@ void OcctWidget::loadStepFile(const std::string& filePath)
         if (labels.Length() > 0) {
             TDF_Label aLabel = labels.Value(1);
 
-
             TopoDS_Shape baseShape = XCAFDoc_ShapeTool::GetShape(aLabel);
             Bnd_Box boundingBox;
             BRepBndLib::Add(baseShape, boundingBox);
@@ -405,18 +400,29 @@ void OcctWidget::loadStepFile(const std::string& filePath)
             centerTrsf.SetTranslation(gp_Vec(-center.X(), -center.Y(), -center.Z()));
 
             TopoDS_Shape centeredShape = BRepBuilderAPI_Transform(baseShape, centerTrsf).Shape();
+            Handle(AIS_Shape) newPart = new AIS_Shape(centeredShape);
 
-            myLoadedPart = new AIS_Shape(centeredShape);
-            myContext->SetColor(myLoadedPart, Quantity_NOC_GRAY75, Standard_False);
-            myContext->SetMaterial(myLoadedPart, Graphic3d_NOM_ALUMINIUM, Standard_False);
+            myContext->SetColor(newPart, Quantity_NOC_GRAY75, Standard_False);
+            myContext->SetMaterial(newPart, Graphic3d_NOM_ALUMINIUM, Standard_False);
+            myContext->SetDisplayMode(newPart, 1, Standard_False);
 
-            myContext->SetDisplayMode(myLoadedPart, 1, Standard_False);
-            myContext->Display(myLoadedPart, Standard_True);
+            // 🚀 MULTI-TASK: Assign to the specific UserFrame map slot!
+            myLoadedParts[ufIndex] = newPart;
+
+            // 🚀 MULTI-TASK: Move to its assigned UserFrame Origin
+            if (myUFOrigins.count(ufIndex)) {
+                gp_Trsf moveTrsf;
+                moveTrsf.SetTranslation(gp_Vec(myUFOrigins[ufIndex].X(), myUFOrigins[ufIndex].Y(), myUFOrigins[ufIndex].Z()));
+                myContext->SetLocation(newPart, TopLoc_Location(moveTrsf));
+            }
+
+            myContext->Display(newPart, Standard_True);
 
             if (myRole == OcctWidget::SideRole) { myView->FitAll(); }
             myView->Redraw();
             setSelectionMode(myCurrentSelectionMode);
-            emit statusUpdate("✅ Workpiece Centered & Loaded.");
+
+            emit statusUpdate(QString("✅ Workpiece Centered & Loaded to Task %1.").arg(ufIndex + 1));
         }
     }
 }
@@ -424,7 +430,7 @@ void OcctWidget::loadStepFile(const std::string& filePath)
 
 
 
-void OcctWidget::resetOrigin()
+void OcctWidget::resetOrigin(int ufIndex)
 {
     if (myOriginMarker.IsNull()) {
         emit statusUpdate("⚠️ Warning: No model loaded to reset.");
@@ -568,6 +574,9 @@ void OcctWidget::redoSelection()
 }
 
 // Update the function signature to take the parameter
+// ====================================================================
+// 🚀 1. PROCESS CURRENT SELECTION (WITH MULTI-TASK MEMORY)
+// ====================================================================
 void OcctWidget::processCurrentSelection(double resolution)
 {
     if (myContext.IsNull() || !myContext->HasSelectedShape()) return;
@@ -579,58 +588,66 @@ void OcctWidget::processCurrentSelection(double resolution)
 
     myContext->InitSelected();
     int addedCount = 0;
-
     QString txtData;
     QTextStream stringOut(&txtData);
-    // 🚀 THE FIX: Removed the "X,Y,Z\n" header!
 
     while (myContext->MoreSelected()) {
         TopoDS_Shape shape = myContext->SelectedShape();
+        Handle(AIS_InteractiveObject) selObj = myContext->SelectedInteractive();
+
+        // 🚀 AUTOMATICALLY FIND THE PARENT USERFRAME
+        int activeUfIndex = -1;
+        for (auto const& [ufIdx, aisPart] : myLoadedParts) {
+            if (selObj == aisPart) {
+                activeUfIndex = ufIdx;
+                break;
+            }
+        }
+
+        // Fetch the corresponding origin (Fallback to 0,0,0 if not found)
+        gp_Pnt activeOrigin = (activeUfIndex != -1 && myUFOrigins.count(activeUfIndex))
+                                  ? myUFOrigins[activeUfIndex]
+                                  : gp_Pnt(0,0,0);
 
         Handle(AIS_Shape) plottedPath = new AIS_Shape(shape);
         myContext->SetColor(plottedPath, Quantity_NOC_RED, Standard_False);
-
-        if (shape.ShapeType() == TopAbs_FACE) {
-            myContext->SetDisplayMode(plottedPath, 1, Standard_False);
-        } else {
-            myContext->SetWidth(plottedPath, 3.0, Standard_False);
-        }
+        if (shape.ShapeType() == TopAbs_FACE) myContext->SetDisplayMode(plottedPath, 1, Standard_False);
+        else myContext->SetWidth(plottedPath, 3.0, Standard_False);
 
         myContext->Display(plottedPath, Standard_True);
-        myPathHistory.push_back({shape, plottedPath, resolution});
+
+        // 🚀 SAVE THE ORIGIN TO HISTORY SO REGENERATE CSV DOESN'T BREAK!
+        myPathHistory.push_back({shape, plottedPath, resolution, activeOrigin});
         addedCount++;
 
+        // Pass the ACTIVE ORIGIN into your processing functions
         switch (shape.ShapeType()) {
-        case TopAbs_FACE: processFace(TopoDS::Face(shape), stringOut, resolution); break;
-        case TopAbs_WIRE: processWire(TopoDS::Wire(shape), stringOut, resolution); break;
-        case TopAbs_EDGE: processEdge(TopoDS::Edge(shape), stringOut, resolution); break;
+        case TopAbs_FACE: processFace(TopoDS::Face(shape), stringOut, resolution, activeOrigin); break;
+        case TopAbs_WIRE: processWire(TopoDS::Wire(shape), stringOut, resolution, activeOrigin); break;
+        case TopAbs_EDGE: processEdge(TopoDS::Edge(shape), stringOut, resolution, activeOrigin); break;
         default: break;
         }
 
         myContext->NextSelected();
     }
     myContext->ClearSelected(Standard_True);
-    this->setProperty("selectionCount", 0); // 🚀 NEW: Reset the count mathematically
+    this->setProperty("selectionCount", 0); // Reset the count mathematically
     myRedoStack.clear();
 
     emit coordinatesExtracted(txtData);
     regenerateCSV();
     emit statusUpdate(QString("✅ Extracted %1 new path(s). Total Paths: %2").arg(addedCount).arg(myPathHistory.size()));
 
-    // 🚀 Triggers the UI to flip back to Yellow and display "COUNT: 0"
+    // Triggers the UI to flip back to Yellow and display "COUNT: 0"
     emit selectionChanged(false);
 }
-
 void OcctWidget::regenerateCSV()
 {
-    // 🚀 THE FIX: If there is no active path in memory, DO NOT wipe the physical file!
-    // This keeps your last generated points perfectly safe when the app closes.
     if (myPathHistory.empty()) {
         return;
     }
 
     QFile file(myCSVPath);
-    // QIODevice::Truncate will safely overwrite the old points ONLY if we have new ones to save
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         return;
     }
@@ -638,10 +655,11 @@ void OcctWidget::regenerateCSV()
     QTextStream out(&file);
 
     for (const auto& step : myPathHistory) {
+        // 🚀 WE NOW PASS THE STORED `step.activeOrigin` BACK INTO THE MATH!
         switch (step.shape.ShapeType()) {
-        case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution); break;
-        case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution); break;
-        case TopAbs_EDGE: processEdge(TopoDS::Edge(step.shape), out, step.resolution); break;
+        case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution, step.activeOrigin); break;
+        case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution, step.activeOrigin); break;
+        case TopAbs_EDGE: processEdge(TopoDS::Edge(step.shape), out, step.resolution, step.activeOrigin); break;
         default: break;
         }
     }
@@ -657,7 +675,7 @@ static gp_Dir g_faceNormal(0, 0, 1);
 static bool g_hasFaceNormal = false;
 
 
-void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution)
+void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
 {
     Standard_Real umin, umax, vmin, vmax;
     BRepTools::UVBounds(face, umin, umax, vmin, vmax);
@@ -676,13 +694,13 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
     for (; wireExplorer.More(); wireExplorer.Next()) {
         TopoDS_Wire wire = TopoDS::Wire(wireExplorer.Current());
 
-        // 🚀 THE FIX: Removed the Boundary Marker text!
-        processWire(wire, out, resolution);
+        // 🚀 THE FIX: Pass the dynamic origin down into the wire processor
+        processWire(wire, out, resolution, activeOrigin);
     }
     g_hasFaceNormal = false;
 }
 
-void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution)
+void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
 {
     BRepAdaptor_CompCurve compCurve(wire, Standard_True);
     Standard_Real first = compCurve.FirstParameter();
@@ -713,8 +731,9 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
             auto writeCoordinates = [&](const gp_Pnt& point) {
                 gp_Ax3 toolPos(point, z_axis, x_axis);
 
+                // 🚀 USE THE SPECIFIC PART'S ORIGIN (Multi-Task Math)
                 gp_Trsf inverseTranslation;
-                inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+                inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
                 toolPos.Transform(inverseTranslation);
 
                 gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
@@ -763,7 +782,8 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
         }
     }
 }
-void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution)
+
+void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
 {
     Standard_Real first, last;
     Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
@@ -812,8 +832,10 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
             // =======================================================
             auto writeCoordinates = [&](const gp_Pnt& point) {
                 gp_Ax3 toolPos(point, z_axis, x_axis);
+
+                // 🚀 USE THE SPECIFIC PART'S ORIGIN (Multi-Task Math)
                 gp_Trsf inverseTranslation;
-                inverseTranslation.SetTranslation(gp_Vec(-myCustomOrigin.X(), -myCustomOrigin.Y(), -myCustomOrigin.Z()));
+                inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
                 toolPos.Transform(inverseTranslation);
 
                 gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
@@ -860,7 +882,6 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
         }
     }
 }
-
 void OcctWidget::paintEvent(QPaintEvent *event)
 {
     // ✅ MUST BE CALLED: Keeps Qt's internal rendering loop happy
@@ -948,7 +969,8 @@ void OcctWidget::mousePressEvent(QMouseEvent *event)
                                       .arg(newOriginSnap.X(), 0, 'f', 2).arg(newOriginSnap.Y(), 0, 'f', 2).arg(newOriginSnap.Z(), 0, 'f', 2);
 
                     if (QMessageBox::question(this, "Confirm New Origin", msg) == QMessageBox::Yes) {
-                        myCustomOrigin = newOriginSnap;
+                        int activeUf = 0; // Or whatever logic you use to select the current Task/UF
+                        myUFOrigins[activeUf] = newOriginSnap;
                         gp_Ax2 newCoords(myCustomOrigin, gp_Dir(0, 0, 1), gp_Dir(1, 0, 0));
                         Handle(Geom_Axis2Placement) placement = new Geom_Axis2Placement(newCoords);
                         myOriginMarker->SetComponent(placement);
@@ -1043,9 +1065,9 @@ void OcctWidget::displayIsolatedPart(const TopoDS_Shape& shape)
 // ==========================================================
 // CALIBRATION OFFSET (Moves the Table/Square)
 // ==========================================================
-void OcctWidget::offsetWorkpiece(double dx, double dy, double dz)
+void OcctWidget::offsetWorkpiece(int ufIndex, double dx, double dy, double dz)
 {
-    if (myLoadedPart.IsNull()) {
+    if (!myLoadedParts.count(ufIndex)) {
         emit statusUpdate("⚠️ Load a part first before moving it.");
         return;
     }
@@ -1055,8 +1077,8 @@ void OcctWidget::offsetWorkpiece(double dx, double dy, double dz)
     transform.SetTranslation(gp_Vec(dx, dy, dz));
     TopLoc_Location loc(transform);
 
-    // Apply the offset to the part
-    myContext->SetLocation(myLoadedPart, loc);
+    // Apply the offset to the specific part
+    myContext->SetLocation(myLoadedParts[ufIndex], loc);
     myContext->UpdateCurrentViewer();
 
     emit statusUpdate(QString("📏 Part Calibrated to Robot Base -> X:%1, Y:%2, Z:%3").arg(dx).arg(dy).arg(dz));
@@ -1446,21 +1468,15 @@ void OcctWidget::showEvent(QShowEvent *event)
 }
 
 
-void OcctWidget::clearLoadedPart()
-{
-    if (!myLoadedPart.IsNull()) {
-        myContext->Remove(myLoadedPart, Standard_True);
-        myLoadedPart.Nullify();
-        emit statusUpdate("🗑️ File cleared from view.");
-        myView->Redraw();
-    }
-}
 
-QString OcctWidget::getOriginText() const {
+QString OcctWidget::getOriginText(int ufIndex) const {
+    if (!myUFOrigins.count(ufIndex)) return "X: 0.000 | Y: 0.000 | Z: 0.000";
+
+    gp_Pnt origin = myUFOrigins.at(ufIndex);
     return QString("X: %1 | Y: %2 | Z: %3")
-    .arg(myCustomOrigin.X(), 0, 'f', 3)
-        .arg(myCustomOrigin.Y(), 0, 'f', 3)
-        .arg(myCustomOrigin.Z(), 0, 'f', 3);
+        .arg(origin.X(), 0, 'f', 3)
+        .arg(origin.Y(), 0, 'f', 3)
+        .arg(origin.Z(), 0, 'f', 3);
 }
 
 void OcctWidget::drawRoomGrid()
@@ -1470,8 +1486,8 @@ void OcctWidget::drawRoomGrid()
     double minY = -7000.0, maxY = 7000.0;
     double minZ = 0.0, maxZ = 2000.0;
 
-    double step = 100.0; // Physical grid lines every 100mm
-    int labelStep = 500; // Text labels every 500mm to prevent overlapping text
+    double step = 250.0; // Physical grid lines every 100mm
+    int labelStep = 250; // Text labels every 500mm to prevent overlapping text
 
     TopoDS_Compound floorComp, backWallComp, leftWallComp;
     BRep_Builder builder;
@@ -1615,13 +1631,13 @@ void OcctWidget::drawRoomGrid()
 // ==========================================================
 // ✅ THE FIX: SET USER FRAME ORIGIN (PRESERVES ROTATION)
 // ==========================================================
-void OcctWidget::setUserFrameOrigin(double ui_x, double ui_y, double ui_z)
+void OcctWidget::setUserFrameOrigin(int ufIndex, double ui_x, double ui_y, double ui_z)
 {
     if (myContext.IsNull()) return;
 
     myCustomOrigin = gp_Pnt(ui_x, ui_y, ui_z);
 
-    // 1. 🚀 RECOVER THE ACTIVE ROTATION (Do not wipe it out!)
+    // 1. RECOVER THE ACTIVE ROTATION
     double radX = g_currentRx * (M_PI / 180.0);
     double radY = g_currentRy * (M_PI / 180.0);
     double radZ = g_currentRz * (M_PI / 180.0);
@@ -1636,23 +1652,24 @@ void OcctWidget::setUserFrameOrigin(double ui_x, double ui_y, double ui_z)
     // Combine into one master transformation matrix
     gp_Trsf finalTrsf = toUserFrame * rotZ * rotY * rotX;
 
-    // 2. Apply it to the 3D Part
-    if (!myLoadedPart.IsNull()) {
-        myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
+    // 2. Apply it to the 3D Part (Using the Map!)
+    if (myLoadedParts.count(ufIndex)) {
+        myContext->SetLocation(myLoadedParts[ufIndex], TopLoc_Location(finalTrsf));
     }
 
-    // 3. Apply it to the Target Marker Triad (Arrows)
-    if (myUserFrameMarker.IsNull()) {
-        myUserFrameMarker = createThickTriad(1.3);
-        myContext->SetDisplayMode(myUserFrameMarker, 1, Standard_False);
-        myContext->Display(myUserFrameMarker, Standard_False);
+    // 3. Apply it to the Target Marker Triad (Using the Map!)
+    if (!myUserFrameMarkers.count(ufIndex)) {
+        myUserFrameMarkers[ufIndex] = createThickTriad(1.3);
+        myContext->SetDisplayMode(myUserFrameMarkers[ufIndex], 1, Standard_False);
+        myContext->Display(myUserFrameMarkers[ufIndex], Standard_False);
     }
 
-    myContext->SetLocation(myUserFrameMarker, TopLoc_Location(finalTrsf));
+    myContext->SetLocation(myUserFrameMarkers[ufIndex], TopLoc_Location(finalTrsf));
 
     myContext->UpdateCurrentViewer();
     emit statusUpdate(QString("📍 UserFrame Origin SET at X:%1 Y:%2 Z:%3").arg(ui_x).arg(ui_y).arg(ui_z));
 }
+
 
 
 
@@ -1812,13 +1829,13 @@ void OcctWidget::clearTargetMarker()
 
 
 
-void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx, double ry, double rz)
+void OcctWidget::transformLoadedPart(int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz)
 {
-    if (myLoadedPart.IsNull()) return;
+    // Ensure the specific Task (UserFrame) actually has a part loaded
+    if (!myLoadedParts.count(ufIndex)) return;
 
-    // Save current values
-    g_currentRx = rx; g_currentRy = ry; g_currentRz = rz;
-    myCustomOrigin = gp_Pnt(dx, dy, dz);
+    // Save current UserFrame origin
+    myUFOrigins[ufIndex] = gp_Pnt(dx, dy, dz);
 
     double radX = rx * (M_PI / 180.0);
     double radY = ry * (M_PI / 180.0);
@@ -1837,12 +1854,12 @@ void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx,
     // Combine into final transformation
     gp_Trsf finalTrsf = toUserFrame * rotZ * rotY * rotX;
 
-    // Apply to the loaded part
-    myContext->SetLocation(myLoadedPart, TopLoc_Location(finalTrsf));
+    // Apply to the specific loaded part
+    myContext->SetLocation(myLoadedParts[ufIndex], TopLoc_Location(finalTrsf));
 
-    // Apply to the User Frame Marker (Arrows)
-    if (!myUserFrameMarker.IsNull()) {
-        myContext->SetLocation(myUserFrameMarker, TopLoc_Location(finalTrsf));
+    // Apply to the specific User Frame Marker (Arrows) if it exists
+    if (myUserFrameMarkers.count(ufIndex)) {
+        myContext->SetLocation(myUserFrameMarkers[ufIndex], TopLoc_Location(finalTrsf));
     }
 
     myContext->UpdateCurrentViewer();
@@ -1851,9 +1868,9 @@ void OcctWidget::transformLoadedPart(double dx, double dy, double dz, double rx,
 // ====================================================================
 // 🚀 NEW: ONE-CLICK FULL SHAPE EXTRACTION (SORTED & CONTINUOUS)
 // ====================================================================
-void OcctWidget::processAllEdges(double resolution)
+void OcctWidget::processAllEdges(double resolution, int ufIndex)
 {
-    if (myContext.IsNull() || myLoadedPart.IsNull()) {
+    if (myContext.IsNull() || myLoadedParts.empty()) {
         emit statusUpdate("⚠️ Load a part first!");
         return;
     }
@@ -1865,11 +1882,22 @@ void OcctWidget::processAllEdges(double resolution)
     QString txtData;
     QTextStream stringOut(&txtData);
 
-    Handle(AIS_Shape) aisShape = Handle(AIS_Shape)::DownCast(myLoadedPart);
+    // 🚀 Find the target part! If -1, default to the first available part.
+    int targetUf = (ufIndex != -1) ? ufIndex : myLoadedParts.begin()->first;
+
+    if (!myLoadedParts.count(targetUf)) {
+        emit statusUpdate("⚠️ Error: Target Task has no loaded part.");
+        return;
+    }
+
+    Handle(AIS_Shape) aisShape = myLoadedParts[targetUf];
     if (aisShape.IsNull()) {
         emit statusUpdate("⚠️ Error: The loaded part is not a valid CAD shape.");
         return;
     }
+
+    // 🚀 Fetch the active origin for this specific Task
+    gp_Pnt activeOrigin = myUFOrigins.count(targetUf) ? myUFOrigins[targetUf] : gp_Pnt(0,0,0);
 
     TopoDS_Shape rawShape = aisShape->Shape();
     gp_Trsf currentTrsf = myContext->Location(aisShape).Transformation();
@@ -1900,11 +1928,12 @@ void OcctWidget::processAllEdges(double resolution)
         myContext->SetWidth(plottedPath, 3.0, Standard_False);
         myContext->Display(plottedPath, Standard_True);
 
-        myPathHistory.push_back({sortedWire, plottedPath, resolution});
+        // 🚀 SAVE ORIGIN TO HISTORY (So CSV regeneration works later)
+        myPathHistory.push_back({sortedWire, plottedPath, resolution, activeOrigin});
         addedCount++;
 
-        // 4. Send the SORTED loop to the point generator!
-        processWire(sortedWire, stringOut, resolution);
+        // 4. Send the SORTED loop to the point generator (passing active origin)
+        processWire(sortedWire, stringOut, resolution, activeOrigin);
     } else {
         emit statusUpdate("⚠️ Could not stitch lines. Make sure the DXF shape is a closed loop!");
         return;
@@ -1917,7 +1946,6 @@ void OcctWidget::processAllEdges(double resolution)
 
     emit statusUpdate("✅ FULL SHAPE EXTRACTED as a smooth, continuous path!");
 }
-
 
 // ==========================================================
 // 🚀 CALCULATE CUSTOM START POINT & MOVE LABEL
@@ -2070,4 +2098,73 @@ void OcctWidget::reloadRobot(const QString& folderPath, const QString& linkPrefi
 
     // 6. Trigger the async loader loop to build the new robot
     loadDefaultRobot();
+}
+
+// ----------------------------------------------------
+// 1. SET USER FRAME STATE (ACTIVATING/DEACTIVATING TASKS)
+// ----------------------------------------------------
+// ----------------------------------------------------
+// 1. SET USER FRAME STATE (ACTIVATING/DEACTIVATING TASKS)
+// ----------------------------------------------------
+void OcctWidget::setUserFrameState(int ufIndex, bool isActive, double ui_x, double ui_y, double ui_z)
+{
+    if (myContext.IsNull()) return;
+
+    if (!isActive) {
+        if (myUserFrameMarkers.count(ufIndex)) {
+            myContext->Remove(myUserFrameMarkers[ufIndex], Standard_False);
+            myUserFrameMarkers.erase(ufIndex);
+        }
+        clearLoadedPart(ufIndex);
+    } else {
+        // 1. Save the new origin mathematically
+        myUFOrigins[ufIndex] = gp_Pnt(ui_x, ui_y, ui_z);
+
+        // 2. Create a default pure translation (used if no part exists yet)
+        gp_Trsf pureTranslation;
+        pureTranslation.SetTranslation(gp_Vec(ui_x, ui_y, ui_z));
+
+        // 3. Create the 3D Triad Marker if it doesn't exist
+        if (!myUserFrameMarkers.count(ufIndex)) {
+            Handle(AIS_ColoredShape) marker = createThickTriad(1.3);
+            myContext->SetDisplayMode(marker, 1, Standard_False);
+            myUserFrameMarkers[ufIndex] = marker;
+            myContext->Display(marker, Standard_False);
+        }
+
+        // 🚀 THE FIX: Preserve Rotation if the part exists!
+        if (myLoadedParts.count(ufIndex)) {
+            // Get the current matrix (which includes the user's Rx, Ry, Rz from the Apply button)
+            gp_Trsf currentTrsf = myContext->Location(myLoadedParts[ufIndex]).Transformation();
+
+            // ONLY replace the XYZ position, leaving the rotation completely untouched
+            currentTrsf.SetTranslationPart(gp_Vec(ui_x, ui_y, ui_z));
+
+            // Apply the safe matrix to both the part and the marker
+            myContext->SetLocation(myLoadedParts[ufIndex], TopLoc_Location(currentTrsf));
+            myContext->SetLocation(myUserFrameMarkers[ufIndex], TopLoc_Location(currentTrsf));
+        } else {
+            // If no part is loaded, just move the marker to the XYZ
+            myContext->SetLocation(myUserFrameMarkers[ufIndex], TopLoc_Location(pureTranslation));
+        }
+    }
+    myContext->UpdateCurrentViewer();
+}
+
+// ----------------------------------------------------
+// 2. CLEAR A SPECIFIC PART
+// ----------------------------------------------------
+void OcctWidget::clearLoadedPart(int ufIndex)
+{
+    // Check if the map contains a part for this specific Task/ufIndex
+    if (myLoadedParts.count(ufIndex)) {
+        // Remove it from the 3D viewer
+        myContext->Remove(myLoadedParts[ufIndex], Standard_True);
+
+        // Erase it from the map memory
+        myLoadedParts.erase(ufIndex);
+
+        emit statusUpdate("🗑️ File cleared from view.");
+        myView->Redraw();
+    }
 }

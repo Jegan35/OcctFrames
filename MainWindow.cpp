@@ -207,21 +207,17 @@ void MainWindow::setupConnections()
     // Backend Errors -> Top Bar
     connect(this->m_backend, &ClientBackend::systemErrorTriggered, this, &MainWindow::triggerSystemError);
 
-    connect(this->rightPanel, &RightPanel::requestMainLoadStep, this, [this](const QString& path){
-        if(this->leftPanel && this->leftPanel->getMainOcctWidget())
-            this->leftPanel->getMainOcctWidget()->loadStepFile(path.toStdString());
+    connect(rightPanel, &RightPanel::requestMainLoadStep, this, [=](QString path, int ufIndex) {
+        this->leftPanel->getMainOcctWidget()->loadStepFile(path.toStdString(), ufIndex);
     });
 
-    connect(this->rightPanel, &RightPanel::requestMainClearStep, this, [this](){
-        if(this->leftPanel && this->leftPanel->getMainOcctWidget())
-            this->leftPanel->getMainOcctWidget()->clearLoadedPart();
+    connect(rightPanel, &RightPanel::requestMainClearStep, this, [=](int ufIndex) {
+        this->leftPanel->getMainOcctWidget()->clearLoadedPart(ufIndex);
     });
 
-    connect(this->rightPanel, &RightPanel::requestMainSetUserFrame, this, [this](double x, double y, double z){
-        if(this->leftPanel && this->leftPanel->getMainOcctWidget())
-            this->leftPanel->getMainOcctWidget()->setUserFrameOrigin(x, y, z);
-        if(this->m_backend)
-            this->m_backend->setUserFrame(x, y, z);
+    connect(rightPanel, &RightPanel::requestMainSetUserFrame, this, [=](int ufIndex, bool isActive, double x, double y, double z) {
+        // 🚀 THE FIX: Use State instead of Origin to physically hide/show the 3D geometry!
+        this->leftPanel->getMainOcctWidget()->setUserFrameState(ufIndex, isActive, x, y, z);
     });
 
     connect(this->leftPanel->getMainOcctWidget(), &OcctWidget::partSelectedForIsolation,
@@ -255,9 +251,8 @@ void MainWindow::setupConnections()
             this->leftPanel->getMainOcctWidget()->clearTargetMarker();
     });
 
-    connect(this->rightPanel, &RightPanel::requestMainTransformPart, this, [this](double dx, double dy, double dz, double rx, double ry, double rz){
-        if(this->leftPanel && this->leftPanel->getMainOcctWidget())
-            this->leftPanel->getMainOcctWidget()->transformLoadedPart(dx, dy, dz, rx, ry, rz);
+    connect(rightPanel, &RightPanel::requestMainTransformPart, this, [=](int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz) {
+        this->leftPanel->getMainOcctWidget()->transformLoadedPart(ufIndex, dx, dy, dz, rx, ry, rz);
     });
 
     // 🚀 THE FIX: Only ONE connection for requestMainLoadRobot, using the static_cast!

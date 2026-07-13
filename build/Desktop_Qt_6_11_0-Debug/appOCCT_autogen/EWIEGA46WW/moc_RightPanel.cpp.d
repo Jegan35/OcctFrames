@@ -7,6 +7,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QDebug \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QList \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QObject \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSet \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QString \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QTimer \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q17memory.h \
@@ -19,6 +20,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q23type_traits.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/q23utility.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstracteventdispatcher.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractitemmodel.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qalgorithms.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qalloc.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qanystringview.h \
@@ -179,6 +181,7 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qwindowdefs.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QCheckBox \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QComboBox \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLabel \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QLineEdit \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QPushButton \
@@ -188,10 +191,13 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractbutton.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractscrollarea.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractslider.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractspinbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qboxlayout.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcheckbox.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qframe.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qgridlayout.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlabel.h \
@@ -199,9 +205,15 @@
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlayoutitem.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qlineedit.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qpushbutton.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qsizepolicy.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qslider.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qspinbox.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstackedwidget.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
+  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabwidget.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtextedit.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgets-config.h \
   /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtwidgetsexports.h \

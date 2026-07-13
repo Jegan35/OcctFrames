@@ -13,6 +13,8 @@
 #include <QSpinBox>
 #include <cmath>
 #include <kdl/frames.hpp> // Required for One Brain Math
+#include <QSet>           // 🚀 Required for Multi-Task tracking
+#include <QComboBox>
 #include "ClientBackend.h"
 #include "OcctWidget.h"
 
@@ -21,17 +23,11 @@
 // ==========================================
 class RobotMath {
 public:
-    // Forces both OpenCASCADE and the Robot to calculate Rx, Ry, Rz using identical KDL logic.
     static void getUnifiedEulerDegrees(const KDL::Rotation& rot, double &rx, double &ry, double &rz) {
-        // 1. Calculate Roll, Pitch, Yaw natively in KDL
         rot.GetRPY(rx, ry, rz);
-
-        // 2. Convert Radians to Degrees for UI perfection
         rx = rx * (180.0 / M_PI);
         ry = ry * (180.0 / M_PI);
         rz = rz * (180.0 / M_PI);
-
-        // 3. Clean up floating point noise (forces tiny numbers to perfectly 0.0)
         if (std::abs(rx) < 0.001) rx = 0.0;
         if (std::abs(ry) < 0.001) ry = 0.0;
         if (std::abs(rz) < 0.001) rz = 0.0;
@@ -44,23 +40,16 @@ public:
 struct RobotConfigData {
     QString name;
     QString folderPath;
-    QString linkPrefix; // e.g., "link", "links1", "part"
-    // Core Kinematic Dimensions (based on your existing KDL setup)
+    QString linkPrefix;
     double base_x, base_z, arm_z, elbow_z, forearm_x, wrist_x;
 };
-struct Matrix3x3 {
-    double m[3][3];
-};
 
-struct Vector3 {
-    double x, y, z;
-};
-
+struct Matrix3x3 { double m[3][3]; };
+struct Vector3 { double x, y, z; };
 struct RobotPose {
     Vector3 flange_pos;
     Matrix3x3 rotation;
 };
-
 
 class RightPanel : public QWidget
 {
@@ -70,9 +59,7 @@ public:
     explicit RightPanel(ClientBackend *backend, QWidget *parent = nullptr);
     ~RightPanel() override = default;
 
-    // Getter for MainWindow to access the 3D viewer
     OcctWidget* getDxfPreviewWidget() const { return m_dxfPreviewWidget; }
-
 
 public slots:
     void setGetPointsEnabled(bool enabled);
@@ -80,10 +67,13 @@ public slots:
     void setActiveTab(int index);
 
 signals:
-    // Signals to route commands to the Main Left Panel (Robot View)
-    void requestMainLoadStep(const QString& filePath);
-    void requestMainClearStep();
-    void requestMainSetUserFrame(double x, double y, double z);
+    // 🚀 MULTI-TASK & UF SIGNALS
+    void requestMainLoadStep(const QString& path, int ufIndex);
+    void requestMainClearStep(int ufIndex);
+    void requestMainSetUserFrame(int ufIndex, bool isActive, double x, double y, double z);
+    void requestMainTransformPart(int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz);
+
+    // General Signals
     void requestMainLoadTool(const QString& toolName, double x, double y, double z);
     void requestMainClearTool();
     void requestJogPress(QString btn);
@@ -91,7 +81,6 @@ signals:
     void requestDrawTargetMarker(double x, double y, double z);
     void requestSetJogStep(QString stepVal);
     void requestClearTargetMarker();
-    void requestMainTransformPart(double dx, double dy, double dz, double rx, double ry, double rz);
     void requestClosePanel();
     void requestMainLoadRobot(const QString& folderPath);
     void requestMainLoadRobot(const QString& folderPath, const QString& linkPrefix,
@@ -102,15 +91,11 @@ private:
     void saveUserFramesConfig();
     void loadUserFramesConfig();
 
-    // UI Builders
     QWidget* buildDxfFileWidget();
     QWidget* buildFrameWidget();
-
     QWidget* buildStepControlWidget();
-
-
-    // Updates the frame list dynamically
     void refreshFrameUI();
+
     QWidget* buildCalcOriginWidget();
     void refreshRecordListUI();
     void clearCalibration();
@@ -131,41 +116,34 @@ private:
     QWidget* buildRobotWidget();
     void saveRobotConfig();
     void loadRobotConfig();
-    void refreshRobotUI();
 
 private:
+    int m_activeFrameIndex = 0;
     ClientBackend *m_backend = nullptr;
 
-    // Layout elements
     QVBoxLayout *m_mainLayout = nullptr;
     QStackedWidget *m_stackedWidget = nullptr;
     OcctWidget* m_stepPreviewWidget = nullptr;
-    // DXF/STEP Page Items
     OcctWidget *m_dxfPreviewWidget = nullptr;
     QLabel *m_lblOrigin = nullptr;
     QPushButton *m_btnGetPoints = nullptr;
     QTextEdit *m_txtCoordinates = nullptr;
 
-    // User Frame Structure & Variables
-    struct UserFrameData {
-        double x = 0.0;
-        double y = 0.0;
-        double z = 0.0;
-    };
+    struct UserFrameData { double x = 0.0; double y = 0.0; double z = 0.0; };
 
     QList<UserFrameData> m_userFrames;
-    int m_activeFrameIndex = 0;
     bool m_frameDeleteMode = false;
     QVBoxLayout* m_frameListLayout = nullptr;
     QList<QCheckBox*> m_frameCheckboxes;
 
-    // ========================================================
-    // TOOL FRAME STRUCTURE & VARIABLES
-    // ========================================================
+    // 🚀 MULTI-TASK TRACKING
+    QSet<int> m_selectedUFs;
+    QComboBox* m_cmbTargetTask = nullptr;
+
     struct ToolFrameData {
         QString name;
-        double x, y, z;      // Static Tool Frame (Physical tool dimensions)
-        double ox, oy, oz;   // NEW: Dynamic Live Offset (Fine-tuning)
+        double x, y, z;
+        double ox, oy, oz;
         double px, py, pz;
     };
 

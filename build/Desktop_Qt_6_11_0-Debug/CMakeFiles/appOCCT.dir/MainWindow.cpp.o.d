@@ -1315,6 +1315,17 @@ CMakeFiles/appOCCT.dir/MainWindow.cpp.o: \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtGui/qvalidator.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qregularexpression.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qlocale.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/QSet \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QComboBox \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qcombobox.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractitemdelegate.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyleoption.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qabstractslider.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qstyle.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qtabbar.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qrubberband.h \
+ /home/texsonics/Qt/6.11.0/gcc_64/include/QtCore/qabstractitemmodel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QHBoxLayout \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QApplication \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/qapplication.h \

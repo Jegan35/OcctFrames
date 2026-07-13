@@ -25,6 +25,7 @@
 #include <AIS_Shape.hxx>
 #include <AIS_TextLabel.hxx>
 
+#include <map>
 #include <vector>
 
 // ADD THIS TO KILL THE X11 MACRO CLASH
@@ -39,39 +40,47 @@ struct PathData {
     TopoDS_Shape shape;
     Handle(AIS_Shape) visualRedPath;
     double resolution;
+    gp_Pnt activeOrigin;
 };
 
 class OcctWidget : public QWidget
 {
     Q_OBJECT
 public:
-    void reloadRobot(const QString& folderPath, const QString& linkPrefix,
-                     double bx, double bz, double az, double ez, double fx, double wx);
     explicit OcctWidget(QWidget *parent = nullptr);
     ~OcctWidget() override;
-    bool hasLoadedPart() const { return !myLoadedPart.IsNull(); }
-    void processAllEdges(double resolution);
-    void transformLoadedPart(double dx, double dy, double dz, double rx, double ry, double rz);
-    void clearLoadedPart();
+
+    // =========================================================
+    // 🚀 MULTI-TASK CORE METHODS
+    // =========================================================
+    void setUserFrameState(int ufIndex, bool isActive, double x, double y, double z);
+    void loadStepFile(const std::string& filePath, int ufIndex);
+    void transformLoadedPart(int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz);
+    void clearLoadedPart(int ufIndex);
+    bool hasLoadedPart() const { return !myLoadedParts.empty(); }
+    void processAllEdges(double resolution, int ufIndex = -1);
+    QString getOriginText(int ufIndex) const;
+
+    void reloadRobot(const QString& folderPath, const QString& linkPrefix,
+                     double bx, double bz, double az, double ez, double fx, double wx);
+    void reloadRobot(const QString& folderPath);
+
     void processCurrentSelection(double resolution);
-    void setUserFrameOrigin(double x, double y, double z);
-    // Add this new line right below it to read the origin:
-    QString getOriginText() const;
+    void clearMarks();
 
     // Defines whether this widget acts as the Main Left screen or the Isolated Right screen
     enum ViewRole { MainRole, SideRole };
-    void clearMarks();
     void setViewRole(ViewRole role) { myRole = role; }
 
-    void loadStepFile(const std::string& filePath);
     void loadDefaultRobot();
+
     // Shifts the loaded workpiece for calibration
-    void offsetWorkpiece(double dx, double dy, double dz);
+    void offsetWorkpiece(int ufIndex, double dx, double dy, double dz);
 
     void setSelectionMode(int mode);
     void enableOriginSelectionMode();
-    void resetOrigin();
-
+    void resetOrigin(int ufIndex);
+    void setUserFrameOrigin(int ufIndex, double ui_x, double ui_y, double ui_z);
     // Side panel display
     void displayIsolatedPart(const TopoDS_Shape& shape);
 
@@ -86,7 +95,6 @@ public:
     void clearTargetMarker();
     void calculateCustomStartPoint(double percentage);
     void calculateCustomEndPoint(double percentage);
-    void reloadRobot(const QString& folderPath);
 
 signals:
     void statusUpdate(const QString& msg);
@@ -109,35 +117,41 @@ protected:
 
 private:
 
+    // =========================================================
+    // 🚀 MULTI-TASK MAPS (Replaces single instances)
+    // =========================================================
+    std::map<int, Handle(AIS_Shape)> myLoadedParts;
+    std::map<int, Handle(AIS_ColoredShape)> myUserFrameMarkers;
+    std::map<int, gp_Pnt> myUFOrigins;
+
     QString m_robotFolderPath = "/home/texsonics/Documents/toolocct/step1/";
     QString m_robotLinkPrefix = "link";
     double m_rob_bx = 155.0, m_rob_bz = 470.0, m_rob_az = 604.0;
     double m_rob_ez = 200.0, m_rob_fx = 640.5, m_rob_wx = 100.0;
+
     TopoDS_Edge m_customStartEdge;
     TopoDS_Edge m_customEndEdge;
 
     Handle(AIS_Shape) m_customStartMarker;
     Handle(AIS_Shape) m_customEndMarker;
 
-    // =========================================================
-    // 🚀 NEW: Custom Trim Tracking Variables (Labels & Percentages)
-    // =========================================================
+    // Custom Trim Tracking Variables (Labels & Percentages)
     Handle(AIS_TextLabel) m_customStartLabel;
     Handle(AIS_TextLabel) m_customEndLabel;
     double m_trimStartPct = 0.0;
     double m_trimEndPct = 100.0;
 
-    // 🚀 NEW: Start Marker tracking variables
+    // Start Marker tracking variables
     Handle(AIS_Shape) myStartPointMarker;
     Handle(AIS_TextLabel) myStartLabel;
     bool m_isFirstPointFound = false;
 
-    // 🚀 NEW: Function to draw the marker
     void drawStartMarker(const gp_Pnt& pt);
 
     double m_toolOffsetX = 0.0;
     double m_toolOffsetY = 0.0;
     double m_toolOffsetZ = 0.0;
+
     Handle(AIS_Shape) myToolShape;
     gp_Trsf myLastTipTrsf;
     std::vector<gp_Pnt> myTrajectoryPoints;
@@ -145,25 +159,24 @@ private:
     Handle(AIS_ColoredShape) myBaseTriad;
     Handle(AIS_ColoredShape) myTipTriad;
     Handle(AIS_ColoredShape) createThickTriad(double scale);
-    Handle(AIS_ColoredShape) myUserFrameMarker;
+
     int myCurrentLoadIndex = -1;
     void loadNextRobotLink();
     ViewRole myRole = MainRole;
     int myCurrentSelectionMode = 1; // Remembers the dropdown state
+
     Handle(AIS_Shape) myTargetMarker;
     Handle(V3d_Viewer) myViewer;
     Handle(V3d_View) myView;
     Handle(AIS_InteractiveContext) myContext;
     Handle(OpenGl_GraphicDriver) myGraphicDriver;
 
-    // Remembers the loaded table/workpiece so we can offset it
-    Handle(AIS_InteractiveObject) myLoadedPart;
     std::vector<Handle(AIS_InteractiveObject)> myRobotLinks;
     QPoint myLastMousePos;
 
     bool myIsSettingOriginMode = false;
-    gp_Pnt myCustomOrigin{0.0, 0.0, 0.0};
     gp_Pnt myDefaultOrigin{0.0, 0.0, 0.0};
+    gp_Pnt myCustomOrigin{0.0, 0.0, 0.0}; // <-- Add this line back!
     Handle(AIS_Trihedron) myOriginMarker;
 
     // Variables to manage History and the CSV
@@ -177,9 +190,12 @@ private:
     // Centralized file writer
     void regenerateCSV();
 
-    void processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution);
-    void processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution);
-    void processFace(const TopoDS_Face& face, QTextStream& out, double resolution);
+    // =========================================================
+    // 🚀 DYNAMIC EXTRACTION METHODS (Uses Active Origin)
+    // =========================================================
+    void processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
+    void processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
+    void processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
 };
 
 #endif // OCCTWIDGET_H
