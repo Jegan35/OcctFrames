@@ -13,12 +13,17 @@
 #include <QDebug>
 #include <Graphic3d_MaterialAspect.hxx> // For metallic rendering
 #include <QTimer>
+#include <algorithm>
+
 #include <Graphic3d_HorizontalTextAlignment.hxx>
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
 #include <gp_Trsf.hxx>
 #include <Font_FontAspect.hxx>
 #include <kdl/frames.hpp>
+#include <BRepTools_WireExplorer.hxx>
+#include <GeomAbs_CurveType.hxx>
+
 #include "RightPanel.h"
 
 
@@ -693,8 +698,6 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
     TopExp_Explorer wireExplorer(face, TopAbs_WIRE);
     for (; wireExplorer.More(); wireExplorer.Next()) {
         TopoDS_Wire wire = TopoDS::Wire(wireExplorer.Current());
-
-        // 🚀 THE FIX: Pass the dynamic origin down into the wire processor
         processWire(wire, out, resolution, activeOrigin);
     }
     g_hasFaceNormal = false;
@@ -702,81 +705,116 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
 
 void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
 {
-    BRepAdaptor_CompCurve compCurve(wire, Standard_True);
-    Standard_Real first = compCurve.FirstParameter();
-    Standard_Real last = compCurve.LastParameter();
-    GCPnts_UniformAbscissa discretizer(compCurve, resolution, first, last);
+    gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
+    gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
 
-    if (discretizer.IsDone()) {
-        for (int i = 1; i <= discretizer.NbPoints(); ++i) {
-            Standard_Real param = discretizer.Parameter(i);
+    gp_Dir reference_dir(1, 0, 0);
+    if (x_axis.IsParallel(reference_dir, 0.01)) {
+        reference_dir = gp_Dir(0, 1, 0);
+    }
+
+    gp_Dir y_axis = reference_dir.Crossed(x_axis);
+    gp_Dir z_axis = x_axis.Crossed(y_axis);
+
+    auto writeCoordinates = [&](const gp_Pnt& point) {
+        gp_Ax3 toolPos(point, z_axis, x_axis);
+
+        gp_Trsf inverseTranslation;
+        inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
+        toolPos.Transform(inverseTranslation);
+
+        gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+        gp_Trsf trsf;
+        trsf.SetDisplacement(defaultOXY, toolPos);
+
+        gp_Mat m = trsf.VectorialPart();
+        KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                             m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                             m.Value(3,1), m.Value(3,2), m.Value(3,3));
+        double rx, ry, rz;
+        RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+        out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
+            << rx << "," << ry << "," << rz << "\n";
+    };
+
+    BRepTools_WireExplorer explorer(wire);
+
+    int totalEdges = 0;
+    for (BRepTools_WireExplorer countExp(wire); countExp.More(); countExp.Next()) {
+        totalEdges++;
+    }
+
+    int currentEdge = 0;
+
+    for (; explorer.More(); explorer.Next()) {
+        TopoDS_Edge edge = explorer.Current();
+        currentEdge++;
+
+        Standard_Real first, last;
+        Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
+        if (curve.IsNull()) continue;
+
+        BRepAdaptor_Curve adaptor(edge);
+
+        // =======================================================
+        // 🚀 SMART PEN LOGIC: LINE vs CURVE
+        // =======================================================
+        GeomAbs_CurveType curveType = adaptor.GetType();
+        std::vector<Standard_Real> pointParams;
+
+        if (curveType == GeomAbs_Line) {
+            // Straight Line: Only Start and End points! (Saves points, 4 points for a square)
+            pointParams.push_back(first);
+            pointParams.push_back(last);
+        } else {
+            // Curve: High resolution points for smooth arcs and circles!
+            GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
+            if (discretizer.IsDone()) {
+                for (int i = 1; i <= discretizer.NbPoints(); ++i) {
+                    pointParams.push_back(discretizer.Parameter(i));
+                }
+            }
+        }
+
+        // =======================================================
+        // 🚀 REVERSE FIX: PREVENT DIAGONAL JUMPS ON SQUARES!
+        // =======================================================
+        if (edge.Orientation() == TopAbs_REVERSED) {
+            std::reverse(pointParams.begin(), pointParams.end());
+        }
+
+        // =======================================================
+        // Process the Generated Points
+        // =======================================================
+        for (size_t i = 0; i < pointParams.size(); ++i) {
+
+            // Prevent duplicate coordinates at corners
+            if (currentEdge > 1 && i == 0) continue;
+
+            Standard_Real param = pointParams[i];
             gp_Pnt pt;
             gp_Vec tangentVec;
-            compCurve.D1(param, pt, tangentVec);
-
-            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z()); // Keeps tool pointing at surface
-
-            gp_Dir reference_dir(1, 0, 0);
-            if (x_axis.IsParallel(reference_dir, 0.01)) {
-                reference_dir = gp_Dir(0, 1, 0);
-            }
-
-            gp_Dir y_axis = reference_dir.Crossed(x_axis);
-            gp_Dir z_axis = x_axis.Crossed(y_axis);
-
-            // =======================================================
-            // 🚀 NEW: HELPER TO WRITE COORDINATES (Cleans up code)
-            // =======================================================
-            auto writeCoordinates = [&](const gp_Pnt& point) {
-                gp_Ax3 toolPos(point, z_axis, x_axis);
-
-                // 🚀 USE THE SPECIFIC PART'S ORIGIN (Multi-Task Math)
-                gp_Trsf inverseTranslation;
-                inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
-                toolPos.Transform(inverseTranslation);
-
-                gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
-                gp_Trsf trsf;
-                trsf.SetDisplacement(defaultOXY, toolPos);
-
-                gp_Mat m = trsf.VectorialPart();
-                KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
-                                     m.Value(2,1), m.Value(2,2), m.Value(2,3),
-                                     m.Value(3,1), m.Value(3,2), m.Value(3,3));
-
-                double rx, ry, rz;
-                RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
-
-                double x_mm = toolPos.Location().X();
-                double y_mm = toolPos.Location().Y();
-                double z_mm = toolPos.Location().Z();
-
-                out << x_mm << "," << y_mm << "," << z_mm << "," << rx << "," << ry << "," << rz << "\n";
-            };
+            adaptor.D1(param, pt, tangentVec);
 
             if (!m_isFirstPointFound) {
-                gp_Ax3 startPos(pt, z_axis, x_axis); // Marker stays on the surface
+                gp_Ax3 startPos(pt, z_axis, x_axis);
                 drawStartMarker(startPos.Location());
                 m_isFirstPointFound = true;
             }
 
-            // =======================================================
-            // 🚀 THE FIX: Z-HOP APPROACH (Move Down from 50mm Above)
-            // =======================================================
-            if (i == 1) {
-                gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 50.0); // Lift 50mm relative to surface
+            // 🚀 Z-HOP APPROACH: 10mm
+            if (currentEdge == 1 && i == 0) {
+                gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 30.0);
                 writeCoordinates(approachPt);
             }
 
-            // 📍 Write the actual cutting/laser point on the surface
+            // 📍 ACTUAL SURFACE POINT
             writeCoordinates(pt);
 
-            // =======================================================
-            // 🚀 THE FIX: Z-HOP RETRACT (Pull Up 50mm After Finishing)
-            // =======================================================
-            if (i == discretizer.NbPoints()) {
-                gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 50.0); // Lift 50mm relative to surface
+            // 🚀 Z-HOP RETRACT: 10mm
+            if (currentEdge == totalEdges && i == (pointParams.size() - 1)) {
+                gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 30.0);
                 writeCoordinates(retractPt);
             }
         }
@@ -807,109 +845,129 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
     }
 
     BRepAdaptor_Curve adaptor(edge);
-    GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
 
-    if (discretizer.IsDone()) {
-        for (int i = 1; i <= discretizer.NbPoints(); ++i) {
-            Standard_Real param = discretizer.Parameter(i);
-            gp_Pnt pt;
-            gp_Vec tangentVec;
-            adaptor.D1(param, pt, tangentVec);
+    // =======================================================
+    // 🚀 SMART PEN LOGIC: LINE vs CURVE
+    // =======================================================
+    GeomAbs_CurveType curveType = adaptor.GetType();
+    std::vector<Standard_Real> pointParams;
 
-            gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
-            gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
-
-            gp_Dir reference_dir(1, 0, 0);
-            if (x_axis.IsParallel(reference_dir, 0.01)) {
-                reference_dir = gp_Dir(0, 1, 0);
-            }
-
-            gp_Dir y_axis = reference_dir.Crossed(x_axis);
-            gp_Dir z_axis = x_axis.Crossed(y_axis);
-
-            // =======================================================
-            // 🚀 NEW: HELPER TO WRITE COORDINATES (Cleans up code)
-            // =======================================================
-            auto writeCoordinates = [&](const gp_Pnt& point) {
-                gp_Ax3 toolPos(point, z_axis, x_axis);
-
-                // 🚀 USE THE SPECIFIC PART'S ORIGIN (Multi-Task Math)
-                gp_Trsf inverseTranslation;
-                inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
-                toolPos.Transform(inverseTranslation);
-
-                gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
-                gp_Trsf trsf;
-                trsf.SetDisplacement(defaultOXY, toolPos);
-
-                gp_Mat m = trsf.VectorialPart();
-                KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
-                                     m.Value(2,1), m.Value(2,2), m.Value(2,3),
-                                     m.Value(3,1), m.Value(3,2), m.Value(3,3));
-                double rx, ry, rz;
-                RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
-
-                out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
-                    << rx << "," << ry << "," << rz << "\n";
-            };
-
-            if (!m_isFirstPointFound) {
-                if (!isTrimmedEdge) {
-                    gp_Ax3 startPos(pt, z_axis, x_axis);
-                    drawStartMarker(startPos.Location());
-                }
-                m_isFirstPointFound = true;
-            }
-
-            // =======================================================
-            // 🚀 THE FIX: Z-HOP APPROACH
-            // =======================================================
-            if (i == 1) {
-                gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 50.0);
-                writeCoordinates(approachPt);
-            }
-
-            // 📍 Write the actual surface point
-            writeCoordinates(pt);
-
-            // =======================================================
-            // 🚀 THE FIX: Z-HOP RETRACT
-            // =======================================================
-            if (i == discretizer.NbPoints()) {
-                gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 50.0);
-                writeCoordinates(retractPt);
+    if (curveType == GeomAbs_Line) {
+        // Straight Line: Only Start and End points
+        pointParams.push_back(first);
+        pointParams.push_back(last);
+    } else {
+        // Curve/Arc: High resolution points
+        GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
+        if (discretizer.IsDone()) {
+            for (int i = 1; i <= discretizer.NbPoints(); ++i) {
+                pointParams.push_back(discretizer.Parameter(i));
             }
         }
     }
-}
-void OcctWidget::paintEvent(QPaintEvent *event)
-{
-    // ✅ MUST BE CALLED: Keeps Qt's internal rendering loop happy
-    QWidget::paintEvent(event);
 
-    if (myView.IsNull()) initOCCT();
-    myView->Redraw();
-}
+    // =======================================================
+    // 🚀 REVERSE FIX: PREVENT DIAGONAL JUMPS!
+    // =======================================================
+    if (edge.Orientation() == TopAbs_REVERSED) {
+        std::reverse(pointParams.begin(), pointParams.end());
+    }
 
-void OcctWidget::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
+    gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
+    gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
 
-    if (!myView.IsNull()) {
-        myView->MustBeResized(); // Tell X11 to update the dimensions
+    gp_Dir reference_dir(1, 0, 0);
+    if (x_axis.IsParallel(reference_dir, 0.01)) {
+        reference_dir = gp_Dir(0, 1, 0);
+    }
 
-        // ✅ NEW: Automatically re-frame the camera when the layout updates!
-        // This ensures the grid and text are never cut off after the "MAX" fix.
-        myView->FitAll();
+    gp_Dir y_axis = reference_dir.Crossed(x_axis);
+    gp_Dir z_axis = x_axis.Crossed(y_axis);
 
-        myView->Redraw();
+    auto writeCoordinates = [&](const gp_Pnt& point) {
+        gp_Ax3 toolPos(point, z_axis, x_axis);
+
+        gp_Trsf inverseTranslation;
+        inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
+        toolPos.Transform(inverseTranslation);
+
+        gp_Ax3 defaultOXY(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0));
+        gp_Trsf trsf;
+        trsf.SetDisplacement(defaultOXY, toolPos);
+
+        gp_Mat m = trsf.VectorialPart();
+        KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
+                             m.Value(2,1), m.Value(2,2), m.Value(2,3),
+                             m.Value(3,1), m.Value(3,2), m.Value(3,3));
+        double rx, ry, rz;
+        RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+        out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
+            << rx << "," << ry << "," << rz << "\n";
+    };
+
+    for (size_t i = 0; i < pointParams.size(); ++i) {
+        Standard_Real param = pointParams[i];
+        gp_Pnt pt;
+        gp_Vec tangentVec;
+        adaptor.D1(param, pt, tangentVec);
+
+        if (!m_isFirstPointFound) {
+            if (!isTrimmedEdge) {
+                gp_Ax3 startPos(pt, z_axis, x_axis);
+                drawStartMarker(startPos.Location());
+            }
+            m_isFirstPointFound = true;
+        }
+
+        // 🚀 Z-HOP APPROACH: 10mm
+        if (i == 0) {
+            gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 30.0);
+            writeCoordinates(approachPt);
+        }
+
+        // 📍 ACTUAL SURFACE POINT
+        writeCoordinates(pt);
+
+        // 🚀 Z-HOP RETRACT: 10mm
+        if (i == (pointParams.size() - 1)) {
+            gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 30.0);
+            writeCoordinates(retractPt);
+        }
     }
 }
-void OcctWidget::mousePressEvent(QMouseEvent *event)
-{
-    myLastMousePos = event->pos();
-    int x = event->pos().x() * devicePixelRatio();
-    int y = event->pos().y() * devicePixelRatio();
+
+
+
+
+void OcctWidget::paintEvent(QPaintEvent *event)
+                            {
+                                // ✅ MUST BE CALLED: Keeps Qt's internal rendering loop happy
+                                QWidget::paintEvent(event);
+
+    if (myView.IsNull()) initOCCT();
+                                myView->Redraw();
+                            }
+
+void OcctWidget::resizeEvent(QResizeEvent *event)
+                            {
+                                QWidget::resizeEvent(event);
+
+    if (!myView.IsNull()) {
+                                    myView->MustBeResized(); // Tell X11 to update the dimensions
+
+        // ✅ NEW: Automatically re-frame the camera when the layout updates!
+                                    // This ensures the grid and text are never cut off after the "MAX" fix.
+                                    myView->FitAll();
+
+        myView->Redraw();
+                                }
+                            }
+                            void OcctWidget::mousePressEvent(QMouseEvent *event)
+                            {
+                                myLastMousePos = event->pos();
+                                int x = event->pos().x() * devicePixelRatio();
+                                int y = event->pos().y() * devicePixelRatio();
 
     if (event->button() == Qt::LeftButton) {
         myContext->MoveTo(x, y, myView, Standard_True);

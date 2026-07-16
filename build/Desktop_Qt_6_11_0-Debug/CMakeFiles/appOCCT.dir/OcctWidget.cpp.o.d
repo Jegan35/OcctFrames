@@ -618,6 +618,9 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/include/kdl/frames.hpp /usr/include/kdl/utilities/kdl-config.h \
  /usr/include/kdl/utilities/utility.h \
  /usr/include/kdl/utilities/kdl-config.h /usr/include/kdl/frames.inl \
+ /usr/local/include/opencascade/BRepTools_WireExplorer.hxx \
+ /usr/local/include/opencascade/TopTools_DataMapOfShapeListOfShape.hxx \
+ /usr/local/include/opencascade/GeomAbs_CurveType.hxx \
  /home/texsonics/Documents/toolocct/RightPanel.h \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QWidget \
  /home/texsonics/Qt/6.11.0/gcc_64/include/QtWidgets/QVBoxLayout \
@@ -1184,7 +1187,6 @@ CMakeFiles/appOCCT.dir/OcctWidget.cpp.o: \
  /usr/local/include/opencascade/BRepAdaptor_Curve.hxx \
  /usr/local/include/opencascade/Adaptor3d_CurveOnSurface.hxx \
  /usr/local/include/opencascade/Adaptor2d_Curve2d.hxx \
- /usr/local/include/opencascade/GeomAbs_CurveType.hxx \
  /usr/local/include/opencascade/gp_Lin2d.hxx \
  /usr/local/include/opencascade/gp_Circ2d.hxx \
  /usr/local/include/opencascade/gp_Ax22d.hxx \
