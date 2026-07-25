@@ -21,7 +21,7 @@ public:
     void setUserFrame(double x, double y, double z);
     void setPathOffset(double px, double py, double pz);
     void setLiveRuntimeOffset(double ox, double oy, double oz);
-    void updateRobotKinematics(double bx, double bz, double az, double ez, double fx, double wx);
+    void updateRobotKinematics(double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot = false);
 signals:
     void updateRobot3DView(double j1, double j2, double j3, double j4, double j5, double j6);
     void telemetryChanged();
@@ -49,6 +49,7 @@ private slots:
     void executeStepJog();
 
 private:
+    bool m_isCobot = false;
     KDL::Frame m_toolFrame;
     int m_autoRunSpeedPercent = 100;
     std::vector<scurve::point> m_cartesianTrajectory;

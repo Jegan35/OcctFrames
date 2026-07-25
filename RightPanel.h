@@ -37,13 +37,14 @@ public:
 // ==========================================
 // TCP CALIBRATION MATH STRUCTURES
 // ==========================================
+// 1. Update the struct:
 struct RobotConfigData {
     QString name;
     QString folderPath;
     QString linkPrefix;
-    double base_x, base_z, arm_z, elbow_z, forearm_x, wrist_x;
+    double base_x, base_z, arm_z, elbow_z, forearm_x, wrist_x, flange_y; // 🚀 ADDED flange_y
+    bool isCobot;
 };
-
 struct Matrix3x3 { double m[3][3]; };
 struct Vector3 { double x, y, z; };
 struct RobotPose {
@@ -84,7 +85,7 @@ signals:
     void requestClosePanel();
     void requestMainLoadRobot(const QString& folderPath);
     void requestMainLoadRobot(const QString& folderPath, const QString& linkPrefix,
-                              double bx, double bz, double az, double ez, double fx, double wx);
+                              double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot); // 🚀 ADDED fy
 
 private:
     void setupUI();

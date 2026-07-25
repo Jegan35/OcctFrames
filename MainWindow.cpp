@@ -195,6 +195,23 @@ void MainWindow::clearSystemError() {
         this->leftPanel->updateTelemetryUI();
     }
 }
+// ============================================================
+// 1. UPDATE onLoadRobot
+// ============================================================
+void MainWindow::onLoadRobot(const QString& folderPath, const QString& linkPrefix,
+                             double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot)
+{
+    m_backend->updateRobotKinematics(bx, bz, az, ez, fx, wx, fy, isCobot);
+
+    // 🚀 FIXED: Changed getOcctWidget() to getMainOcctWidget()
+    if (leftPanel && leftPanel->getMainOcctWidget()) {
+        leftPanel->getMainOcctWidget()->reloadRobot(folderPath, linkPrefix, bx, bz, az, ez, fx, wx, fy, isCobot);
+    }
+
+    if (rightPanel && rightPanel->getDxfPreviewWidget()) {
+        rightPanel->getDxfPreviewWidget()->reloadRobot(folderPath, linkPrefix, bx, bz, az, ez, fx, wx, fy, isCobot);
+    }
+}
 
 // =========================================================================
 // SIGNAL WIRING
@@ -254,21 +271,10 @@ void MainWindow::setupConnections()
     connect(rightPanel, &RightPanel::requestMainTransformPart, this, [=](int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz) {
         this->leftPanel->getMainOcctWidget()->transformLoadedPart(ufIndex, dx, dy, dz, rx, ry, rz);
     });
-
-    // 🚀 THE FIX: Only ONE connection for requestMainLoadRobot, using the static_cast!
-    connect(this->rightPanel,
-            static_cast<void (RightPanel::*)(const QString&, const QString&, double, double, double, double, double, double)>(&RightPanel::requestMainLoadRobot),
+    connect(rightPanel,
+            static_cast<void (RightPanel::*)(const QString&, const QString&, double, double, double, double, double, double, double, bool)>(&RightPanel::requestMainLoadRobot),
             this,
-            [this](const QString& folderPath, const QString& prefix, double bx, double bz, double az, double ez, double fx, double wx){
+            &MainWindow::onLoadRobot);
+    // 🚀 THE FIX: Only ONE connection for requestMainLoadRobot, using the static_cast!
 
-                // 1. Update 3D Canvas
-                if(this->leftPanel && this->leftPanel->getMainOcctWidget()) {
-                    this->leftPanel->getMainOcctWidget()->reloadRobot(folderPath, prefix, bx, bz, az, ez, fx, wx);
-                }
-
-                // 2. Update Math Kinematics (KDL Chain)
-                if(this->m_backend) {
-                    this->m_backend->updateRobotKinematics(bx, bz, az, ez, fx, wx);
-                }
-            });
 }

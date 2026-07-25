@@ -38,7 +38,9 @@ public:
     void ToUserFrame(double x, double y, double z, double &ux, double &uy, double &uz);
     int temp_Ik(bool ikfrominit, KDL::Chain chain, KDL::JntArray jointinit, KDL::JntArray jointmin, KDL::JntArray jointmax, KDL::Frame target_cart, KDL::JntArray &jointcur);
     int Fk_tooldir(double x_in, double y_in, double z_in, double &x_out, double &y_out, double &z_out);
+    // Add this line back inside the 'class kinematic' block:
     int RebuildChain(double bx, double bz, double az, double ez, double fx, double wx);
+    int RebuildCobotChain(double bx, double bz, double az, double ez, double fx, double wx, double fy);
 
     // Solves IK and selects the configuration with the minimum total joint movement
     bool Ik_Optimal_Solution(const KDL::Frame &target_cart, const KDL::JntArray &current_joints, KDL::JntArray &optimal_joints);

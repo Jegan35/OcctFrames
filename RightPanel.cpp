@@ -15,13 +15,13 @@
 #include <QMessageBox>
 #include <cmath>
 #include <QGroupBox>
-#include <QLineEdit>
 #include <QPushButton>
 #include <QTimer>
 #include <QSharedPointer>
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <QPointer>
+
 
 #include <kdl/frames.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
@@ -51,9 +51,6 @@ RightPanel::RightPanel(ClientBackend *backend, QWidget *parent)
     setupUI();
 }
 
-// In RightPanel.h, replace QTabWidget* m_workspaceTabs with QStackedWidget* m_stackedWidget;
-// Add a signal: void requestClosePanel();
-
 void RightPanel::setupUI()
 {
     m_mainLayout = new QVBoxLayout(this);
@@ -69,12 +66,12 @@ void RightPanel::setupUI()
     m_stackedWidget->addWidget(buildFrameWidget());       // Index 2
     m_stackedWidget->addWidget(buildToolWidget());        // Index 3
     m_stackedWidget->addWidget(buildCalcOriginWidget());  // Index 4
-    m_stackedWidget->addWidget(buildRobotWidget());
+    m_stackedWidget->addWidget(buildRobotWidget());       // Index 5
 
     m_mainLayout->addWidget(m_stackedWidget, 1);
 
     // ==========================================================
-    // THE 10% BOTTOM CLOSE BUTTON (As seen in sketch)
+    // THE 10% BOTTOM CLOSE BUTTON
     // ==========================================================
     QPushButton *btnClose = new QPushButton("⬆ CLOSE PANEL");
     btnClose->setFixedHeight(50);
@@ -106,7 +103,6 @@ QWidget* RightPanel::buildDxfFileWidget()
     QWidget *w = new QWidget();
     w->setStyleSheet("background:#0d1117;");
 
-    // ✅ FIX: Vertical Layout for Top/Bottom Split
     QVBoxLayout *dxfLayout = new QVBoxLayout(w);
     dxfLayout->setContentsMargins(15, 15, 15, 10);
     dxfLayout->setSpacing(15);
@@ -158,7 +154,6 @@ QWidget* RightPanel::buildDxfFileWidget()
     ctrlLayout->setSpacing(10);
 
     // --- ROW 1: Mode & Distance ---
-    // --- ROW 1: Mode & Distance ---
     QHBoxLayout *row1 = new QHBoxLayout();
     QLabel *lblMode = new QLabel("SELECTION MODE:");
     lblMode->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:11px;");
@@ -173,9 +168,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->setSelectionMode(index + 1);
     });
 
-    // =================================================================
-    // 🚀 NEW: LIVE SELECTION COUNT BOX
-    // =================================================================
     QLabel *lblCount = new QLabel("COUNT: 0");
     lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:6px 10px; border-radius:4px; border:1px solid #F59E0B;");
 
@@ -187,13 +179,13 @@ QWidget* RightPanel::buildDxfFileWidget()
 
     row1->addWidget(lblMode);
     row1->addWidget(cmbSelection, 1);
-    row1->addWidget(lblCount); // <-- Added in between!
+    row1->addWidget(lblCount);
     row1->addWidget(lblDist);
     row1->addWidget(txtDistance, 1);
     ctrlLayout->addLayout(row1);
 
     // =================================================================
-    // 🚀 NEW: CUSTOM TRIM WIDGET (WITH XYZ COORDINATE BOXES)
+    // CUSTOM TRIM WIDGET (WITH XYZ COORDINATE BOXES)
     // =================================================================
     QWidget* customTrimWidget = new QWidget();
     QVBoxLayout* trimLayout = new QVBoxLayout(customTrimWidget);
@@ -212,7 +204,6 @@ QWidget* RightPanel::buildDxfFileWidget()
     QPushButton* btnSetStart = new QPushButton("🎯 SET START");
     btnSetStart->setStyleSheet("QPushButton { background-color:#10B981; color:white; font-weight:bold; padding:8px; border-radius:4px; } QPushButton:hover { background-color:#059669; }");
 
-    // 🚀 NEW: Text Box for Start XYZ
     QLineEdit* txtStartXyz = new QLineEdit();
     txtStartXyz->setPlaceholderText("X: --- | Y: --- | Z: ---");
     txtStartXyz->setReadOnly(true);
@@ -221,7 +212,7 @@ QWidget* RightPanel::buildDxfFileWidget()
     startRow->addWidget(lblStartEdge);
     startRow->addWidget(spinStartPct);
     startRow->addWidget(btnSetStart);
-    startRow->addWidget(txtStartXyz, 1); // Expand to fill space
+    startRow->addWidget(txtStartXyz, 1);
 
     // --- ROW 2: END POINT ---
     QHBoxLayout* endRow = new QHBoxLayout();
@@ -236,8 +227,6 @@ QWidget* RightPanel::buildDxfFileWidget()
     QPushButton* btnSetEnd = new QPushButton("🛑 SET END");
     btnSetEnd->setStyleSheet("QPushButton { background-color:#EF4444; color:white; font-weight:bold; padding:8px; border-radius:4px; } QPushButton:hover { background-color:#DC2626; }");
 
-
-    // 🚀 NEW: Text Box for End XYZ
     QLineEdit* txtEndXyz = new QLineEdit();
     txtEndXyz->setPlaceholderText("X: --- | Y: --- | Z: ---");
     txtEndXyz->setReadOnly(true);
@@ -246,15 +235,12 @@ QWidget* RightPanel::buildDxfFileWidget()
     endRow->addWidget(lblEndEdge);
     endRow->addWidget(spinEndPct);
     endRow->addWidget(btnSetEnd);
-    endRow->addWidget(txtEndXyz, 1); // Expand to fill space
+    endRow->addWidget(txtEndXyz, 1);
 
     trimLayout->addLayout(startRow);
     trimLayout->addLayout(endRow);
     ctrlLayout->addWidget(customTrimWidget);
 
-    // =================================================================
-    // 🚀 CONNECT THE XYZ BOXES TO THE 3D MATH SIGNALS
-    // =================================================================
     connect(m_dxfPreviewWidget, &OcctWidget::customStartPointCalculated, this, [=](const QString& xyz){
         txtStartXyz->setText(xyz);
     });
@@ -262,7 +248,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         txtEndXyz->setText(xyz);
     });
 
-    // Connect combo box and set buttons...
     connect(cmbSelection, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int index){
         if (cmbSelection->currentText() == "Custom (Trim)") {
             customTrimWidget->setVisible(true);
@@ -281,10 +266,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         double pct = spinEndPct->value();
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->calculateCustomEndPoint(pct);
     });
-    // =================================================================
-
-
-
 
     // --- ROW 2: Action Buttons ---
     QHBoxLayout *row2 = new QHBoxLayout();
@@ -296,12 +277,10 @@ QWidget* RightPanel::buildDxfFileWidget()
     QPushButton *btnFullShape = new QPushButton("🌟 FULL SHAPE");
     btnFullShape->setStyleSheet("QPushButton { background-color:#8B5CF6; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#7C3AED; }");
 
-    // 🚀 NEW: THE FILE TYPE SELECTOR COMBOBOX
     QComboBox *cmbLoadMode = new QComboBox();
     cmbLoadMode->addItems({"CAD Points", "S-Curve Points", "IK Degrees"});
     cmbLoadMode->setStyleSheet("QComboBox { background-color:#1a1e2a; color:#FFFFFF; border:1px solid #3B82F6; padding:8px; border-radius:4px; font-weight:bold; font-size:12px; } QComboBox::drop-down { border:none; width:20px; } QComboBox QAbstractItemView { background-color:#0a0d14; color:#FFFFFF; border:1px solid #3B82F6; selection-background-color:#3B82F6; outline:none; }");
 
-    // 🚀 The Load Text File Button
     QPushButton *btnLoadTxt = new QPushButton("📂 LOAD PATH");
     btnLoadTxt->setStyleSheet("QPushButton { background-color:#3B82F6; color:#FFFFFF; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#2563EB; }");
 
@@ -311,7 +290,7 @@ QWidget* RightPanel::buildDxfFileWidget()
 
     row2->addWidget(m_btnGetPoints, 1);
     row2->addWidget(btnFullShape, 1);
-    row2->addWidget(cmbLoadMode, 1); // <--- Added the new combobox here!
+    row2->addWidget(cmbLoadMode, 1);
     row2->addWidget(btnLoadTxt, 1);
     row2->addWidget(btnRunDxf, 1);
     ctrlLayout->addLayout(row2);
@@ -349,32 +328,8 @@ QWidget* RightPanel::buildDxfFileWidget()
     dxfLayout->addWidget(dxfControlArea, 1);
 
     // =================================================================
-    // 🚀 NEW: CUSTOM TRIM WIDGET CONNECTIONS
+    // ACTIONS
     // =================================================================
-    connect(cmbSelection, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int index){
-        if (cmbSelection->currentText() == "Custom (Trim)") {
-            customTrimWidget->setVisible(true);
-            if (m_dxfPreviewWidget) m_dxfPreviewWidget->setSelectionMode(2);
-        } else {
-            customTrimWidget->setVisible(false);
-        }
-    });
-
-    connect(btnSetStart, &QPushButton::clicked, [=](){
-        double pct = spinStartPct->value();
-        if (m_dxfPreviewWidget) m_dxfPreviewWidget->calculateCustomStartPoint(pct);
-    });
-
-    connect(btnSetEnd, &QPushButton::clicked, [=](){
-        double pct = spinEndPct->value();
-        if (m_dxfPreviewWidget) m_dxfPreviewWidget->calculateCustomEndPoint(pct);
-    });
-
-    // =================================================================
-    // 🚀 CLEANED UP ACTIONS (NO MORE DUPLICATES!)
-    // =================================================================
-
-    // 1. LOAD TXT FILE LOGIC
     connect(btnLoadTxt, &QPushButton::clicked, this, [this, cmbLoadMode]() {
         QString filePath = QFileDialog::getOpenFileName(this, "Select Extracted Path File", "", "Text/CSV Files (*.txt *.csv);;All Files (*.*)");
         if (filePath.isEmpty()) return;
@@ -392,14 +347,11 @@ QWidget* RightPanel::buildDxfFileWidget()
             return;
         }
 
-        // 🚀 Save the selected mode to the text widget properties!
         m_txtCoordinates->setProperty("runMode", cmbLoadMode->currentText());
 
-        // Force the UI & Data to sync perfectly
         if (m_dxfPreviewWidget) emit m_dxfPreviewWidget->coordinatesExtracted(fileData);
     });
 
-    // 2. Get Points Button
     connect(m_btnGetPoints, &QPushButton::clicked, this, [this, txtDistance, lblFileOrigin](){
         double dist = txtDistance->text().toDouble();
         if (dist <= 0.001) dist = 2.0;
@@ -407,7 +359,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText(0));
     });
 
-    // 3. Full Shape Button
     connect(btnFullShape, &QPushButton::clicked, this, [this, txtDistance, lblFileOrigin](){
         double dist = txtDistance->text().toDouble();
         if (dist <= 0.001) dist = 2.0;
@@ -417,13 +368,9 @@ QWidget* RightPanel::buildDxfFileWidget()
         }
     });
 
-    // 🚀 THE FIX: Connect the 3D Engine to the Count UI Box
     connect(m_dxfPreviewWidget, &OcctWidget::selectionChanged, this, [this, lblCount](bool hasSelection){
         this->setGetPointsEnabled(hasSelection);
-
-        // Read the dynamic count property sent from the 3D canvas
         int count = m_dxfPreviewWidget->property("selectionCount").toInt();
-
         if(count > 0) {
             lblCount->setText(QString("COUNT: %1").arg(count));
             lblCount->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px; background:#064E3B; padding:6px 10px; border-radius:4px; border:1px solid #10B981;");
@@ -433,16 +380,8 @@ QWidget* RightPanel::buildDxfFileWidget()
         }
     });
 
-    // =================================================================
-    // 🚀 THE FIX: 0.1 SECOND THREADING (OPTIMIZED LOGIC & STRINGS)
-    // =================================================================
-    // =================================================================
-    // 🚀 THE FIX: UNIFIED THREADING FOR CAD, S-CURVE, AND IK DEGREES
-    // =================================================================
     connect(m_dxfPreviewWidget, &OcctWidget::coordinatesExtracted, this, [this](const QString &data){
-
         m_txtCoordinates->setProperty("rawCsvData", data);
-
         QString mode = m_txtCoordinates->property("runMode").toString();
         if (mode.isEmpty()) mode = "CAD Points";
 
@@ -452,7 +391,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         }
 
         m_txtCoordinates->setHtml(QString("<b style='color:#F59E0B; font-size:14px;'>⚙️ Processing %1...</b>").arg(mode));
-
         QStringList lines = data.split('\n', Qt::SkipEmptyParts);
 
         KDL::Frame uFrame = KDL::Frame::Identity();
@@ -478,24 +416,19 @@ QWidget* RightPanel::buildDxfFileWidget()
             watcher->deleteLater();
         });
 
-        // 3. RUN RENDERING / MATH IN BACKGROUND THREAD
         QFuture<QString> future = QtConcurrent::run([lines, uFrame, tFrame, startJoints, txtUI, mode]() -> QString {
-
             int totalLines = lines.size();
             QString resultHtml;
             resultHtml.reserve((totalLines * 200) + 500);
             resultHtml.append("<pre style='font-family: monospace; font-size: 11px;'>");
 
-            // =====================================================
-            // 🚀 MODE: IK DEGREES (Show J1 to J6)
-            // =====================================================
             if (mode == "IK Degrees") {
                 resultHtml.append("<span style='color: #A3E635;'>J1      J2      J3      J4      J5      J6      </span>\n");
                 resultHtml.append("<span style='color: #30363d;'>------------------------------------------------</span>\n");
 
                 for (int i = 0; i < totalLines; ++i) {
                     QString line = lines[i].trimmed();
-                    if (line.startsWith("---") || line.startsWith("J1")) continue; // Skip headers
+                    if (line.startsWith("---") || line.startsWith("J1")) continue;
 
                     QStringList p = line.split(',');
                     if (p.size() >= 6) {
@@ -506,16 +439,13 @@ QWidget* RightPanel::buildDxfFileWidget()
                     }
                 }
             }
-            // =====================================================
-            // 🚀 MODE: S-CURVE POINTS (Show XYZ and RxRyRz)
-            // =====================================================
             else if (mode == "S-Curve Points") {
                 resultHtml.append("<span style='color: #3B82F6;'>X       Y       Z       Rx      Ry      Rz      </span>\n");
                 resultHtml.append("<span style='color: #30363d;'>------------------------------------------------</span>\n");
 
                 for (int i = 0; i < totalLines; ++i) {
                     QString line = lines[i].trimmed();
-                    if (line.startsWith("---") || line.startsWith("SCURVE")) continue; // Skip headers
+                    if (line.startsWith("---") || line.startsWith("SCURVE")) continue;
 
                     QStringList p = line.split(',');
                     if (p.size() >= 6) {
@@ -526,9 +456,6 @@ QWidget* RightPanel::buildDxfFileWidget()
                     }
                 }
             }
-            // =====================================================
-            // 🚀 MODE: CAD POINTS (Calculate IK on the fly)
-            // =====================================================
             else {
                 resultHtml.append("<span style='color: #00E5FF;'>X       Y       Z       Rx      Ry      Rz      </span>");
                 resultHtml.append("<span style='color: #F59E0B;'>J1      J2      J3      J4      J5      J6      </span>\n");
@@ -622,7 +549,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         watcher->setFuture(future);
     });
 
-    // 5. RUN BUTTON LOGIC
     connect(btnRunDxf, &QPushButton::clicked, this, [this, btnRunDxf]() {
         bool isRunning = btnRunDxf->property("isRunning").toBool();
         if (!isRunning) {
@@ -637,7 +563,7 @@ QWidget* RightPanel::buildDxfFileWidget()
             btnRunDxf->setProperty("isRunning", true);
             QApplication::processEvents();
 
-            if (m_backend) m_backend->runDxfProgram(csvData, mode); // 🚀 PASS THE MODE!
+            if (m_backend) m_backend->runDxfProgram(csvData, mode);
         } else {
             btnRunDxf->setProperty("isRunning", false);
             if (m_backend) m_backend->stopDxfProgram();
@@ -647,7 +573,6 @@ QWidget* RightPanel::buildDxfFileWidget()
         }
     });
 
-    // 6. BACKEND SIGNALS (Looping and Errors)
     if (m_backend) {
         connect(m_backend, &ClientBackend::programFinished, this, [this, btnRunDxf]() {
             if (btnRunDxf->property("isRunning").toBool()) {
@@ -655,7 +580,7 @@ QWidget* RightPanel::buildDxfFileWidget()
                 QString mode = m_txtCoordinates->property("runMode").toString();
                 if (mode.isEmpty()) mode = "CAD Points";
 
-                if (m_backend) m_backend->runDxfProgram(csvData, mode); // 🚀 PASS THE MODE!
+                if (m_backend) m_backend->runDxfProgram(csvData, mode);
             } else {
                 btnRunDxf->setText("▶ RUN");
                 btnRunDxf->setStyleSheet("QPushButton { background-color:#10B981; color:#000000; font-weight:bold; padding:12px; border-radius:4px; border:none; font-size:13px; } QPushButton:hover { background-color:#059669; }");
@@ -672,13 +597,6 @@ QWidget* RightPanel::buildDxfFileWidget()
 
     return w;
 }
-
-
-
-
-
-
-
 
 // ============================================================
 //  buildFrameWidget & refreshFrameUI
@@ -721,8 +639,6 @@ QWidget* RightPanel::buildFrameWidget()
         saveUserFramesConfig();
         refreshFrameUI();
     });
-
-
 
     connect(btnDel, &QPushButton::clicked, this, [this, btnDel](){
         if (!m_frameDeleteMode) {
@@ -785,10 +701,9 @@ void RightPanel::refreshFrameUI()
         bool isTaskActive = m_selectedUFs.contains(i);
 
         if (isTaskActive) {
-            // 🚀 Use the dynamic counter instead of the raw index!
             lbl->setText(QString("★ TASK %1 (UF %2)").arg(taskCounter).arg(i + 1));
             lbl->setStyleSheet("color:#10B981; font-weight:bold; font-size:12px; border:none;");
-            taskCounter++; // Only count up if the task is active
+            taskCounter++;
         } else {
             lbl->setText(QString("USERFRAME %1").arg(i + 1));
             lbl->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:12px; border:none;");
@@ -835,11 +750,9 @@ void RightPanel::refreshFrameUI()
                 btnEditSave->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:4px 10px; border-radius:3px;}");
                 btnEditSave->setProperty("isEditing", false);
 
-                // If this is currently active, sync it
                 if (m_selectedUFs.contains(i)) {
                     emit requestMainSetUserFrame(i, true, m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
 
-                    // If it's the currently viewed task in Step Control, update boxes
                     if (m_cmbTargetTask && m_cmbTargetTask->currentData().toInt() == i) {
                         QLineEdit* stepX = this->findChild<QLineEdit*>("stepTxtX");
                         if(stepX) stepX->setText(QString::number(m_userFrames[i].x));
@@ -853,14 +766,12 @@ void RightPanel::refreshFrameUI()
         });
         rLay->addWidget(btnEditSave);
 
-        // 🚀 THE MAGIC MULTI-TASK TOGGLE BUTTON
-        // 🚀 THE MAGIC MULTI-TASK TOGGLE BUTTON (Made Compact!)
         QPushButton *btnToggleTask = new QPushButton();
         if (isTaskActive) {
-            btnToggleTask->setText("❌ REMOVE"); // Compact Text
+            btnToggleTask->setText("❌ REMOVE");
             btnToggleTask->setStyleSheet("QPushButton{background:#EF4444; color:white; font-weight:bold; padding:4px 8px; border-radius:3px;}");
         } else {
-            btnToggleTask->setText("✅ SELECT"); // Compact Text
+            btnToggleTask->setText("✅ SELECT");
             btnToggleTask->setStyleSheet("QPushButton{background:#10B981; color:black; font-weight:bold; padding:4px 8px; border-radius:3px;}");
         }
 
@@ -873,11 +784,9 @@ void RightPanel::refreshFrameUI()
                 emit requestMainSetUserFrame(i, true, m_userFrames[i].x, m_userFrames[i].y, m_userFrames[i].z);
             }
 
-            // 🚀 REPOPULATE DROPDOWN WITH UNIVERSAL MATH LOGIC
             if (m_cmbTargetTask) {
                 m_cmbTargetTask->clear();
                 int tCount = 1;
-                // Loop through ALL frames in order to guarantee correct sorting
                 for (int k = 0; k < m_userFrames.size(); k++) {
                     if (m_selectedUFs.contains(k)) {
                         m_cmbTargetTask->addItem(QString("TASK %1 (UF %2)").arg(tCount).arg(k + 1), k);
@@ -894,6 +803,7 @@ void RightPanel::refreshFrameUI()
         m_frameListLayout->addWidget(row);
     }
 }
+
 // ============================================================
 //  HELPERS & QSETTINGS
 // ============================================================
@@ -949,9 +859,8 @@ void RightPanel::loadUserFramesConfig()
     m_activeFrameIndex = settings.value("ActiveFrameIndex", 0).toInt();
 }
 
-
 // ============================================================
-//  TOOL FRAME WIDGET BUILDER (DROPDOWN + EDITOR UI)
+//  TOOL FRAME WIDGET BUILDER
 // ============================================================
 QWidget* RightPanel::buildToolWidget()
 {
@@ -961,9 +870,6 @@ QWidget* RightPanel::buildToolWidget()
     mainLay->setContentsMargins(15, 15, 15, 15);
     mainLay->setSpacing(15);
 
-    // ==========================================
-    // 1. TOP BAR: ACTIVE TOOL STATUS
-    // ==========================================
     QGroupBox *grpStatus = new QGroupBox();
     grpStatus->setStyleSheet("QGroupBox { background:#1a1e2a; border:1px solid #2a2d35; border-radius:6px; margin-top:0px; }");
     QHBoxLayout *statusLay = new QHBoxLayout(grpStatus);
@@ -979,9 +885,6 @@ QWidget* RightPanel::buildToolWidget()
     statusLay->addWidget(btnRemoveTool);
     mainLay->addWidget(grpStatus);
 
-    // ==========================================
-    // 2. TOOL SELECTOR BAR
-    // ==========================================
     QHBoxLayout *selLay = new QHBoxLayout();
     QLabel *lblSelect = new QLabel("SELECT TOOL:");
     lblSelect->setStyleSheet("color:#9CA3AF; font-weight:bold; font-size:12px;");
@@ -1001,9 +904,6 @@ QWidget* RightPanel::buildToolWidget()
     selLay->addWidget(btnDelete);
     mainLay->addLayout(selLay);
 
-    // ==========================================
-    // 3. EDITOR PANEL (Displays only the selected tool)
-    // ==========================================
     QGroupBox *grpEdit = new QGroupBox("TOOL CONFIGURATION");
     grpEdit->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; margin-top:15px; font-weight:bold; color:#00E5FF;} QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QGridLayout *eLay = new QGridLayout(grpEdit);
@@ -1012,14 +912,11 @@ QWidget* RightPanel::buildToolWidget()
 
     QString readStyle = "QLineEdit { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace; font-size:13px;}";
     QString editStyle = "QLineEdit { background:#0a0d14; color:#F59E0B; border:1px solid #F59E0B; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace; font-size:13px;}";
-    QString labelStyle = "QLabel { color:#9CA3AF; font-size:12px; font-weight:bold; }";
 
-    // --- Row 0: Name ---
     QLineEdit *txtName = new QLineEdit(); txtName->setStyleSheet(readStyle); txtName->setReadOnly(true);
     eLay->addWidget(new QLabel("Tool Name:"), 0, 0);
     eLay->addWidget(txtName, 0, 1, 1, 5);
 
-    // --- Row 1: Static Frame XYZ ---
     QLineEdit *txtX = new QLineEdit(); txtX->setStyleSheet(readStyle); txtX->setReadOnly(true);
     QLineEdit *txtY = new QLineEdit(); txtY->setStyleSheet(readStyle); txtY->setReadOnly(true);
     QLineEdit *txtZ = new QLineEdit(); txtZ->setStyleSheet(readStyle); txtZ->setReadOnly(true);
@@ -1032,7 +929,6 @@ QWidget* RightPanel::buildToolWidget()
     eLay->addWidget(new QLabel("Y:"), 2, 2); eLay->addWidget(txtY, 2, 3);
     eLay->addWidget(new QLabel("Z:"), 2, 4); eLay->addWidget(txtZ, 2, 5);
 
-    // --- Row 2: Live Offset XYZ ---
     QLineEdit *txtOX = new QLineEdit(); txtOX->setStyleSheet(readStyle); txtOX->setReadOnly(true);
     QLineEdit *txtOY = new QLineEdit(); txtOY->setStyleSheet(readStyle); txtOY->setReadOnly(true);
     QLineEdit *txtOZ = new QLineEdit(); txtOZ->setStyleSheet(readStyle); txtOZ->setReadOnly(true);
@@ -1045,27 +941,18 @@ QWidget* RightPanel::buildToolWidget()
     eLay->addWidget(new QLabel("Offset Y:"), 4, 2); eLay->addWidget(txtOY, 4, 3);
     eLay->addWidget(new QLabel("Offset Z:"), 4, 4); eLay->addWidget(txtOZ, 4, 5);
 
-    // ==========================================
-    // 🚀 NEW Row 3: Path Offset XYZ
-    // ==========================================
-    // ==========================================
-    // 🚀 NEW Row 3: Path Offset XYZ
-    // ==========================================
     QLineEdit *txtPX = new QLineEdit(); txtPX->setStyleSheet(readStyle); txtPX->setReadOnly(true);
     QLineEdit *txtPY = new QLineEdit(); txtPY->setStyleSheet(readStyle); txtPY->setReadOnly(true);
     QLineEdit *txtPZ = new QLineEdit(); txtPZ->setStyleSheet(readStyle); txtPZ->setReadOnly(true);
-
 
     QLabel *lblPathInfo = new QLabel("PATH OFFSET");
     lblPathInfo->setStyleSheet("color:#00E5FF; font-weight:bold; font-size:11px;");
     eLay->addWidget(lblPathInfo, 5, 0, 1, 6);
 
-
     eLay->addWidget(new QLabel("Expand XY (mm):"), 6, 0); eLay->addWidget(txtPX, 6, 1);
     eLay->addWidget(new QLabel("Unused Y:"), 6, 2); eLay->addWidget(txtPY, 6, 3);
     eLay->addWidget(new QLabel("Hover Z (mm):"), 6, 4); eLay->addWidget(txtPZ, 6, 5);
 
-    // --- Row 4: Action Buttons (Shifted to row 7) ---
     QHBoxLayout *actLay = new QHBoxLayout();
     QPushButton *btnEdit = new QPushButton("✏️ EDIT SELECTED TOOL");
     btnEdit->setProperty("isEditing", false);
@@ -1076,16 +963,11 @@ QWidget* RightPanel::buildToolWidget()
 
     actLay->addWidget(btnEdit);
     actLay->addWidget(btnSet);
-    eLay->addLayout(actLay, 7, 0, 1, 6); // 🚀 SHIFTED TO ROW 7
+    eLay->addLayout(actLay, 7, 0, 1, 6);
 
     mainLay->addWidget(grpEdit);
     mainLay->addStretch();
 
-    // ==========================================
-    // 4. DYNAMIC UI LOGIC & CONNECTIONS
-    // ==========================================
-
-    // Helper: Update Active Label Status
     auto updateActiveLabel = [=]() {
         if (m_activeToolIndex >= 0 && m_activeToolIndex < m_toolFrames.size()) {
             lblActiveStatus->setText("🟢 ACTIVE TOOL: " + m_toolFrames[m_activeToolIndex].name);
@@ -1096,7 +978,6 @@ QWidget* RightPanel::buildToolWidget()
         }
     };
 
-    // Helper: Sync Text Boxes with selected Combobox item
     auto syncEditorUI = [=]() {
         int idx = cmbToolSelect->currentIndex();
         if (idx >= 0 && idx < m_toolFrames.size()) {
@@ -1117,7 +998,6 @@ QWidget* RightPanel::buildToolWidget()
         }
     };
 
-    // Initialize Dropdown
     for (const auto& tf : m_toolFrames) cmbToolSelect->addItem(tf.name);
     if (m_activeToolIndex >= 0 && m_activeToolIndex < m_toolFrames.size()) {
         cmbToolSelect->setCurrentIndex(m_activeToolIndex);
@@ -1125,33 +1005,26 @@ QWidget* RightPanel::buildToolWidget()
     syncEditorUI();
     updateActiveLabel();
 
-    // Event: Dropdown Changed
     connect(cmbToolSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int idx){
-        // Only allow changing selection if we are not currently editing
         if (!btnEdit->property("isEditing").toBool()) {
             syncEditorUI();
         }
     });
 
-    // Event: Add New
     connect(btnAdd, &QPushButton::clicked, [=](){
-        m_toolFrames.append(ToolFrameData{"NEW_TOOL", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+        m_toolFrames.append(ToolFrameData{"NEW_TOOL", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
         cmbToolSelect->addItem("NEW_TOOL");
         cmbToolSelect->setCurrentIndex(m_toolFrames.size() - 1);
         saveToolFramesConfig();
     });
 
-    // Event: Delete Selected
     connect(btnDelete, &QPushButton::clicked, [=](){
         int idx = cmbToolSelect->currentIndex();
         if (idx >= 0 && m_toolFrames.size() > 1) {
             m_toolFrames.removeAt(idx);
             cmbToolSelect->removeItem(idx);
-
-            // Adjust active index if necessary
             if (m_activeToolIndex == idx) m_activeToolIndex = -1;
             else if (m_activeToolIndex > idx) m_activeToolIndex--;
-
             saveToolFramesConfig();
             syncEditorUI();
             updateActiveLabel();
@@ -1160,27 +1033,20 @@ QWidget* RightPanel::buildToolWidget()
         }
     });
 
-    // Event: Remove Tool From Robot (Detach)
-    // Event: Remove Tool From Robot (Detach)
     connect(btnRemoveTool, &QPushButton::clicked, [=](){
         m_activeToolIndex = -1;
         updateActiveLabel();
         saveToolFramesConfig();
-
-        // 🚀 Reset the path offset back to zero!
         if (m_backend) m_backend->setPathOffset(0.0, 0.0, 0.0);
         emit requestMainClearTool();
     });
 
-    // Event: Edit / Save Logic
-    // Event: Edit / Save Logic
     connect(btnEdit, &QPushButton::clicked, [=](){
         int idx = cmbToolSelect->currentIndex();
         if (idx < 0) return;
 
         bool isEditing = btnEdit->property("isEditing").toBool();
         if (!isEditing) {
-            // UNLOCK Textboxes
             txtName->setReadOnly(false); txtName->setStyleSheet(editStyle);
             txtX->setReadOnly(false); txtX->setStyleSheet(editStyle);
             txtY->setReadOnly(false); txtY->setStyleSheet(editStyle);
@@ -1188,19 +1054,16 @@ QWidget* RightPanel::buildToolWidget()
             txtOX->setReadOnly(false); txtOX->setStyleSheet(editStyle);
             txtOY->setReadOnly(false); txtOY->setStyleSheet(editStyle);
             txtOZ->setReadOnly(false); txtOZ->setStyleSheet(editStyle);
-
-            // 🚀 UNLOCK PATH OFFSETS
             txtPX->setReadOnly(false); txtPX->setStyleSheet(editStyle);
             txtPY->setReadOnly(false); txtPY->setStyleSheet(editStyle);
             txtPZ->setReadOnly(false); txtPZ->setStyleSheet(editStyle);
 
-            cmbToolSelect->setEnabled(false); // Lock dropdown while editing
+            cmbToolSelect->setEnabled(false);
             btnEdit->setText("📂 SAVE CONFIGURATION");
             btnEdit->setStyleSheet("QPushButton{background:#F59E0B; color:black; font-weight:bold; padding:10px; border-radius:4px;}");
             btnEdit->setProperty("isEditing", true);
             txtName->setFocus();
         } else {
-            // SAVE Data
             m_toolFrames[idx].name = txtName->text();
             m_toolFrames[idx].x = txtX->text().toDouble();
             m_toolFrames[idx].y = txtY->text().toDouble();
@@ -1208,17 +1071,13 @@ QWidget* RightPanel::buildToolWidget()
             m_toolFrames[idx].ox = txtOX->text().toDouble();
             m_toolFrames[idx].oy = txtOY->text().toDouble();
             m_toolFrames[idx].oz = txtOZ->text().toDouble();
-
-            // 🚀 SAVE PATH OFFSETS
             m_toolFrames[idx].px = txtPX->text().toDouble();
             m_toolFrames[idx].py = txtPY->text().toDouble();
             m_toolFrames[idx].pz = txtPZ->text().toDouble();
 
-            // Update dropdown name if changed
             cmbToolSelect->setItemText(idx, m_toolFrames[idx].name);
             saveToolFramesConfig();
 
-            // LOCK Textboxes
             txtName->setReadOnly(true); txtName->setStyleSheet(readStyle);
             txtX->setReadOnly(true); txtX->setStyleSheet(readStyle);
             txtY->setReadOnly(true); txtY->setStyleSheet(readStyle);
@@ -1226,8 +1085,6 @@ QWidget* RightPanel::buildToolWidget()
             txtOX->setReadOnly(true); txtOX->setStyleSheet(readStyle);
             txtOY->setReadOnly(true); txtOY->setStyleSheet(readStyle);
             txtOZ->setReadOnly(true); txtOZ->setStyleSheet(readStyle);
-
-            // 🚀 LOCK PATH OFFSETS
             txtPX->setReadOnly(true); txtPX->setStyleSheet(readStyle);
             txtPY->setReadOnly(true); txtPY->setStyleSheet(readStyle);
             txtPZ->setReadOnly(true); txtPZ->setStyleSheet(readStyle);
@@ -1237,30 +1094,20 @@ QWidget* RightPanel::buildToolWidget()
             btnEdit->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:10px; border-radius:4px;}");
             btnEdit->setProperty("isEditing", false);
 
-            // If they edited the currently active tool, refresh the robot immediately!
-            // If they edited the currently active tool, refresh the robot immediately!
             if (m_activeToolIndex == idx) {
                 updateActiveLabel();
-
-                // 🚀 FIXED: Tool TCP-க்கு physical dimensions (x, y, z) மட்டும் தான் செல்ல வேண்டும்!
                 double totalX = m_toolFrames[idx].x;
                 double totalY = m_toolFrames[idx].y;
                 double totalZ = m_toolFrames[idx].z;
-
                 if (m_backend) {
-                    // 1. Radial Scaling (Star Expand)
                     m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
-
-                    // 2. Linear Shift (Live Movement Offset)
                     m_backend->setLiveRuntimeOffset(m_toolFrames[idx].ox, m_toolFrames[idx].oy, m_toolFrames[idx].oz);
                 }
-
                 emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
             }
         }
     });
 
-    // Event: Set Active
     connect(btnSet, &QPushButton::clicked, [=](){
         int idx = cmbToolSelect->currentIndex();
         if (idx >= 0) {
@@ -1268,16 +1115,13 @@ QWidget* RightPanel::buildToolWidget()
             saveToolFramesConfig();
             updateActiveLabel();
 
-            // 🚀 FIXED: Tool TCP-க்கு physical dimensions மட்டும் தான் செல்ல வேண்டும்
             double totalX = m_toolFrames[idx].x;
             double totalY = m_toolFrames[idx].y;
             double totalZ = m_toolFrames[idx].z;
-
             if (m_backend) {
                 m_backend->setPathOffset(m_toolFrames[idx].px, m_toolFrames[idx].py, m_toolFrames[idx].pz);
                 m_backend->setLiveRuntimeOffset(m_toolFrames[idx].ox, m_toolFrames[idx].oy, m_toolFrames[idx].oz);
             }
-
             emit requestMainLoadTool(m_toolFrames[idx].name, totalX, totalY, totalZ);
         }
     });
@@ -1285,9 +1129,6 @@ QWidget* RightPanel::buildToolWidget()
     return w;
 }
 
-// ============================================================
-//  TOOL CONFIG SAVE/LOAD (UPDATED WITH OFFSETS)
-// ============================================================
 void RightPanel::saveToolFramesConfig()
 {
     QSettings settings("Texsonics", "RobotStudio");
@@ -1301,7 +1142,6 @@ void RightPanel::saveToolFramesConfig()
         settings.setValue("ox", m_toolFrames[i].ox);
         settings.setValue("oy", m_toolFrames[i].oy);
         settings.setValue("oz", m_toolFrames[i].oz);
-        // 🚀 NEW PATH OFFSETS
         settings.setValue("px", m_toolFrames[i].px);
         settings.setValue("py", m_toolFrames[i].py);
         settings.setValue("pz", m_toolFrames[i].pz);
@@ -1326,7 +1166,6 @@ void RightPanel::loadToolFramesConfig()
             double ox = settings.value("ox", 0.0).toDouble();
             double oy = settings.value("oy", 0.0).toDouble();
             double oz = settings.value("oz", 0.0).toDouble();
-            // 🚀 NEW PATH OFFSETS
             double px = settings.value("px", 0.0).toDouble();
             double py = settings.value("py", 0.0).toDouble();
             double pz = settings.value("pz", 0.0).toDouble();
@@ -1334,16 +1173,12 @@ void RightPanel::loadToolFramesConfig()
             m_toolFrames.append(ToolFrameData{name, x, y, z, ox, oy, oz, px, py, pz});
         }
     } else {
-        // Updated default tool format
         m_toolFrames.append(ToolFrameData{"TOOL1_LAZER", 0.0, 0.0, 150.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     }
     settings.endArray();
     m_activeToolIndex = settings.value("ActiveToolIndex", -1).toInt();
 }
 
-// ============================================================
-//  REFRESH TOOL UI (PERFECTLY ALIGNED DYNAMIC ROWS)
-// ============================================================
 void RightPanel::refreshToolUI()
 {
     if (!m_toolListLayout) return;
@@ -1364,11 +1199,9 @@ void RightPanel::refreshToolUI()
         row->setStyleSheet("background:#1a1e2a; border:1px solid #2a2d35; border-radius:4px;");
         QHBoxLayout *rLay = new QHBoxLayout(row);
 
-        // 🚀 Spacing-ஐ சீராக்கியுள்ளோம்
         rLay->setContentsMargins(10, 8, 10, 8);
         rLay->setSpacing(5);
 
-        // 1. Delete Checkbox
         if (m_toolDeleteMode) {
             QCheckBox *chk = new QCheckBox();
             chk->setProperty("toolIndex", i);
@@ -1376,8 +1209,6 @@ void RightPanel::refreshToolUI()
             m_toolCheckboxes.append(chk);
             rLay->addWidget(chk);
         }
-
-        // 2. Status Label (🚀 FIXED WIDTH: 65px)
 
         QLabel *lbl = new QLabel();
         lbl->setFixedWidth(65);
@@ -1390,16 +1221,12 @@ void RightPanel::refreshToolUI()
         }
         rLay->addWidget(lbl);
 
-        // 3. Name Field
         QLabel *lblName = new QLabel("N:"); lblName->setStyleSheet(lblStyle); rLay->addWidget(lblName);
         QLineEdit *nameEdit = new QLineEdit(m_toolFrames[i].name);
         nameEdit->setFixedWidth(75);
         nameEdit->setReadOnly(true); nameEdit->setStyleSheet(readOnlyStyle); rLay->addWidget(nameEdit);
 
-
         rLay->addSpacing(15);
-
-        // 4. X, Y, Z Fields (🚀 INCREASED WIDTH: 40 -> 65)
 
         QLabel *lblX = new QLabel("X:"); lblX->setStyleSheet(lblStyle); rLay->addWidget(lblX);
         QLineEdit *xEdit = new QLineEdit(QString::number(m_toolFrames[i].x));
@@ -1415,7 +1242,6 @@ void RightPanel::refreshToolUI()
 
         rLay->addStretch();
 
-        // 5. Edit Button
         QPushButton *btnEditSave = new QPushButton("✏️EDIT");
         btnEditSave->setProperty("isEditing", false);
         btnEditSave->setStyleSheet("QPushButton{background:#37474f; color:white; font-weight:bold; padding:4px 10px; border-radius:3px;}");
@@ -1455,7 +1281,6 @@ void RightPanel::refreshToolUI()
         });
         rLay->addWidget(btnEditSave);
 
-        // 6. Set Button
         QPushButton *btnSet = new QPushButton("SET");
         btnSet->setStyleSheet("QPushButton{background-color:#8B5CF6; color:white; font-weight:bold; padding:4px 10px; border-radius:3px;}");
         connect(btnSet, &QPushButton::clicked, this, [this, i](){
@@ -1470,11 +1295,8 @@ void RightPanel::refreshToolUI()
     }
 }
 
-
-
-
 // ============================================================
-//  TCP CALIBRATION MATH (THE MISSING FUNCTIONS)
+//  TCP CALIBRATION MATH
 // ============================================================
 int RightPanel::solve6x6(double A[6][6], double B[6], double x[6]) {
     int n = 6;
@@ -1548,8 +1370,6 @@ Vector3 RightPanel::calibrateTCPRobust(const QList<RobotPose>& poses) {
         }
     }
 
-    // 🚀 THE MAGIC BRAKE: Ridge Regularization (Prevents 8000+ values)
-    // இது எல்லா அச்சுகளுக்கும் ஒரு சின்ன பேலன்ஸைக் கொடுத்து எண்கள் விண்ணில் பறப்பதைத் தடுக்கும்.
     for(int i = 0; i < 6; i++) {
         ATA[i][i] += 1e-4;
     }
@@ -1575,7 +1395,7 @@ void RightPanel::clearCalibration()
 }
 
 // ============================================================
-//  BUILD "CALC ORIGIN" WIDGET (PROFESSIONAL INDUSTRIAL UI)
+//  BUILD "CALC ORIGIN" WIDGET
 // ============================================================
 QWidget* RightPanel::buildCalcOriginWidget()
 {
@@ -1589,9 +1409,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
     QString editStyle = "QLineEdit { background:#0a0d14; color:#00E5FF; border:1px solid #F59E0B; border-radius:3px; padding:4px; font-weight:bold; }";
     QString labelStyle = "QLabel { color:#8b949e; font-size:11px; font-weight:bold; }";
 
-    // ---------------------------------------------------------
-    // 1. TARGET SETTINGS (Organized with Edit Buttons)
-    // ---------------------------------------------------------
     QGroupBox *grpTarget = new QGroupBox("🎯 1. VISUAL TARGET & ORIENTATION");
     grpTarget->setStyleSheet("QGroupBox{border:1px solid #30363d; border-radius:4px; margin-top:10px; font-weight:bold;} QGroupBox::title{subcontrol-origin:margin; left:10px; color:#F59E0B;}");
     QGridLayout *layTgt = new QGridLayout(grpTarget);
@@ -1648,29 +1465,21 @@ QWidget* RightPanel::buildCalcOriginWidget()
         }
     });
 
-    // 🚀 FIXED: Request drawing the Red Dot when SET ALL is clicked
     connect(btnSetTgt, &QPushButton::clicked, this, [this](){
         emit requestDrawTargetMarker(m_tgtX->text().toDouble(), m_tgtY->text().toDouble(), m_tgtZ->text().toDouble());
     });
 
-    // ---------------------------------------------------------
-    // 2. MINI JOG PANEL (WITH EXACT STEP DEGREES)
-    // ---------------------------------------------------------
     QGroupBox *jogGroup = new QGroupBox("🎮 2. JOG ROBOT (JOINTS)");
     jogGroup->setStyleSheet("QGroupBox { border: 1px solid #30363d; border-radius: 4px; margin-top: 10px; font-weight:bold; } QGroupBox::title { subcontrol-origin: margin; left: 10px; color:#F59E0B; }");
     QVBoxLayout *jogMainLay = new QVBoxLayout(jogGroup);
 
-    // 🚀 NEW: JOG STEP DROPDOWN
-    // 🚀 NEW: SEPARATE JOG STEP DROPDOWNS (Degrees & Millimeters)
     QHBoxLayout *stepLay = new QHBoxLayout();
 
-    // --- 1. DEGREE STEP (For J1-J6 and Rx, Ry, Rz) ---
     QLabel *lblStepDeg = new QLabel("Step (°):");
     lblStepDeg->setStyleSheet("color:#8b949e; font-weight:bold; font-size:11px;");
 
     QComboBox *cmbStepDeg = new QComboBox();
     cmbStepDeg->addItems({"Continuous", "0.1", "0.5", "1.0", "2.0", "5.0", "10.0", "20.0"});
-    // Cyan color to match Joint/Rotation buttons
     cmbStepDeg->setStyleSheet("background:#161b22; color:#00E5FF; font-weight:bold; border:1px solid #30363d; border-radius:3px; padding:2px; font-size:11px;");
 
     connect(cmbStepDeg, &QComboBox::currentTextChanged, this, [this](const QString &val){
@@ -1681,13 +1490,11 @@ QWidget* RightPanel::buildCalcOriginWidget()
         }
     });
 
-    // --- 2. MILLIMETER STEP (For X, Y, Z) ---
     QLabel *lblStepMm = new QLabel("Step (mm):");
     lblStepMm->setStyleSheet("color:#8b949e; font-weight:bold; font-size:11px; margin-left: 10px;");
 
     QComboBox *cmbStepMm = new QComboBox();
     cmbStepMm->addItems({"Continuous", "0.1", "0.5", "1.0", "2.0", "5.0", "10.0", "20.0", "50.0"});
-    // Green color to match XYZ buttons
     cmbStepMm->setStyleSheet("background:#161b22; color:#10B981; font-weight:bold; border:1px solid #30363d; border-radius:3px; padding:2px; font-size:11px;");
 
     connect(cmbStepMm, &QComboBox::currentTextChanged, this, [this](const QString &val){
@@ -1705,14 +1512,11 @@ QWidget* RightPanel::buildCalcOriginWidget()
     stepLay->addStretch();
     jogMainLay->addLayout(stepLay);
 
-    // JOG BUTTONS (Joints + Cartesian + Orientation)
     QGridLayout *jogLay = new QGridLayout();
     jogMainLay->addLayout(jogLay);
 
-    // --- 1. JOINT JOG BUTTONS (J1 to J6) ---
     QStringList jNames = {"J1", "J2", "J3", "J4", "J5", "J6"};
     for (int i = 0; i < 6; i++) {
-        // 🚀 THE FIX 1: Safely extract the string so the Lambda doesn't lose it!
         QString jName = jNames[i];
 
         QLabel *lblJ = new QLabel(jName);
@@ -1734,10 +1538,8 @@ QWidget* RightPanel::buildCalcOriginWidget()
         jogLay->addWidget(btnPlus,  i / 2, (i % 2) * 3 + 2);
     }
 
-    // --- 2. CARTESIAN & ORIENTATION JOG BUTTONS (X, Y, Z, Rx, Ry, Rz) ---
     QStringList cNames = {"X", "Y", "Z", "Rx", "Ry", "Rz"};
     for (int i = 0; i < 6; i++) {
-        // 🚀 THE FIX 1 (Part B): Safely extract Cartesian strings
         QString cName = cNames[i];
 
         QLabel *lblC = new QLabel(cName);
@@ -1754,7 +1556,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
         connect(btnPlus, &QPushButton::pressed, this, [this, cName]() { emit requestJogPress(cName + "+"); });
         connect(btnPlus, &QPushButton::released, this, [this, cName]() { emit requestJogRelease(cName + "+"); });
 
-        // Add below the Joint buttons (offset by 3 rows)
         jogLay->addWidget(btnMinus, 3 + (i / 2), (i % 2) * 3 + 0);
         jogLay->addWidget(lblC,     3 + (i / 2), (i % 2) * 3 + 1);
         jogLay->addWidget(btnPlus,  3 + (i / 2), (i % 2) * 3 + 2);
@@ -1762,9 +1563,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
 
     mainLay->addWidget(jogGroup);
 
-    // ---------------------------------------------------------
-    // 3. RECORD POINTS LIST (WITH REAL LIVE DATA)
-    // ---------------------------------------------------------
     QPushButton *btnRecord = new QPushButton("📸 3. RECORD CURRENT POSITION");
     btnRecord->setStyleSheet("QPushButton{background:#10B981; color:black; font-weight:bold; padding:8px; border-radius:4px;}");
     mainLay->addWidget(btnRecord);
@@ -1793,9 +1591,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
         refreshRecordListUI();
     });
 
-    // ---------------------------------------------------------
-    // 4. CALCULATE & RESULT
-    // ---------------------------------------------------------
     QPushButton *btnCalc = new QPushButton("⚙️ 4. CALCULATE TCP");
     btnCalc->setStyleSheet("QPushButton{background:#F59E0B; color:black; font-weight:bold; padding:8px; border-radius:4px;}");
     mainLay->addWidget(btnCalc);
@@ -1814,7 +1609,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
         m_lblCalculatedTCP->setText(QString("X: %1 | Y: %2 | Z: %3").arg(tcp.x, 0, 'f', 3).arg(tcp.y, 0, 'f', 3).arg(tcp.z, 0, 'f', 3));
     });
 
-    // Save & Reset
     QHBoxLayout *layBot = new QHBoxLayout();
     QPushButton *btnSave = new QPushButton("💾 APPLY TO ACTIVE TOOL");
     btnSave->setStyleSheet("background:#00bcd4; color:black; font-weight:bold; padding:6px; border-radius:3px;");
@@ -1832,11 +1626,6 @@ QWidget* RightPanel::buildCalcOriginWidget()
     return w;
 }
 
-
-
-// ============================================================
-//  UI REFRESHER FOR RECORDED POINTS
-// ============================================================
 void RightPanel::refreshRecordListUI()
 {
     QLayoutItem *child;
@@ -1874,7 +1663,6 @@ void RightPanel::refreshRecordListUI()
     }
 }
 
-
 // ============================================================
 // 🚀 STEP FILE FULL CONTROL WIDGET (3D View + Transform)
 // ============================================================
@@ -1887,9 +1675,6 @@ QWidget* RightPanel::buildStepControlWidget()
     mainLay->setContentsMargins(15, 15, 15, 10);
     mainLay->setSpacing(15);
 
-    // --------------------------------------------------------
-    // TOP SIDE: 3D View Area
-    // --------------------------------------------------------
     QWidget *viewArea = new QWidget();
     viewArea->setStyleSheet("background-color:#0a0d14; border:1px solid #1e2330; border-radius:5px;");
     viewArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -1901,15 +1686,11 @@ QWidget* RightPanel::buildStepControlWidget()
     viewLayout->addWidget(m_stepPreviewWidget);
     mainLay->addWidget(viewArea, 1);
 
-    // --------------------------------------------------------
-    // BOTTOM SIDE: Control Panel
-    // --------------------------------------------------------
     QWidget *ctrlArea = new QWidget();
     QVBoxLayout *ctrlLay = new QVBoxLayout(ctrlArea);
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(10);
 
-    // --- ROW 1: Target Task, Load, Clear ---
     QHBoxLayout *row1 = new QHBoxLayout();
 
     QLabel *lblTask = new QLabel("TARGET TASK:");
@@ -1918,7 +1699,6 @@ QWidget* RightPanel::buildStepControlWidget()
     m_cmbTargetTask = new QComboBox();
     m_cmbTargetTask->setStyleSheet("background:#161b22; color:white; font-weight:bold; border:1px solid #00E5FF; padding:4px;");
 
-    // Populate with initially active tasks using Universal Math Logic
     int initTaskCount = 1;
     for (int i = 0; i < m_userFrames.size(); i++) {
         if (m_selectedUFs.contains(i)) {
@@ -1943,7 +1723,6 @@ QWidget* RightPanel::buildStepControlWidget()
     row1->addWidget(btnClearStep);
     ctrlLay->addLayout(row1);
 
-    // --- ROW 2: Manual Transform & Rotation ---
     QGroupBox *grpTrans = new QGroupBox("MANUAL PART TRANSFORM & ROTATION (FOR SELECTED TASK)");
     grpTrans->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; color:#00E5FF; font-weight:bold; padding-top:15px; }");
     QGridLayout *gLay = new QGridLayout(grpTrans);
@@ -1972,11 +1751,6 @@ QWidget* RightPanel::buildStepControlWidget()
     ctrlLay->addWidget(grpTrans);
     mainLay->addWidget(ctrlArea, 0);
 
-    // ==========================================
-    // 🔗 SYNCHRONIZED BUTTON CONNECTIONS
-    // ==========================================
-
-    // 🚀 LOAD STEP FOR SPECIFIC TASK
     connect(btnLoadStep, &QPushButton::clicked, this, [=](){
         if (m_cmbTargetTask->count() == 0) {
             QMessageBox::warning(this, "No Task", "Please select/enable a UserFrame Task in the UF tab first!");
@@ -1991,13 +1765,11 @@ QWidget* RightPanel::buildStepControlWidget()
             double ufY = m_userFrames[targetUfIndex].y;
             double ufZ = m_userFrames[targetUfIndex].z;
 
-            // Load to specific UF Task
             if(m_stepPreviewWidget) m_stepPreviewWidget->loadStepFile(filePath.toStdString(), targetUfIndex);
             if(m_dxfPreviewWidget) m_dxfPreviewWidget->loadStepFile(filePath.toStdString(), targetUfIndex);
 
             emit requestMainLoadStep(filePath, targetUfIndex);
 
-            // Update UI to reflect the UserFrame
             txtX->setText(QString::number(ufX));
             txtY->setText(QString::number(ufY));
             txtZ->setText(QString::number(ufZ));
@@ -2005,7 +1777,6 @@ QWidget* RightPanel::buildStepControlWidget()
         }
     });
 
-    // 🚀 CLEAR TASK
     connect(btnClearStep, &QPushButton::clicked, this, [=](){
         if (m_cmbTargetTask->count() == 0) return;
         int targetUfIndex = m_cmbTargetTask->currentData().toInt();
@@ -2022,7 +1793,6 @@ QWidget* RightPanel::buildStepControlWidget()
         if(m_stepPreviewWidget) m_stepPreviewWidget->enableOriginSelectionMode();
     });
 
-    // 🚀 APPLY TRANSFORM TO TASK
     connect(btnApplyTransform, &QPushButton::clicked, this, [=](){
         if (m_cmbTargetTask->count() == 0) return;
         int targetUfIndex = m_cmbTargetTask->currentData().toInt();
@@ -2038,24 +1808,21 @@ QWidget* RightPanel::buildStepControlWidget()
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->transformLoadedPart(targetUfIndex, dx, dy, dz, rx, ry, rz);
         emit requestMainTransformPart(targetUfIndex, dx, dy, dz, rx, ry, rz);
 
-        // Tell Backend the UF moved
         emit requestMainSetUserFrame(targetUfIndex, true, dx, dy, dz);
 
-        // Sync internally
         m_userFrames[targetUfIndex].x = dx;
         m_userFrames[targetUfIndex].y = dy;
         m_userFrames[targetUfIndex].z = dz;
         saveUserFramesConfig();
         refreshFrameUI();
     });
-    // 🚀 THE FIX: Sync the Dropdown with the XYZ Text Boxes
+
     connect(m_cmbTargetTask, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
         if (index < 0) {
             txtX->setText("0.0"); txtY->setText("0.0"); txtZ->setText("0.0");
             return;
         }
 
-        // Extract the true User Frame index from the combo box item data
         int targetUfIndex = m_cmbTargetTask->itemData(index).toInt();
 
         if (targetUfIndex >= 0 && targetUfIndex < m_userFrames.size()) {
@@ -2068,7 +1835,6 @@ QWidget* RightPanel::buildStepControlWidget()
         }
     });
 
-    // 🚀 Force the UI to load the coordinates for whatever task is selected on boot
     if (m_cmbTargetTask->count() > 0) {
         int initialUfIndex = m_cmbTargetTask->itemData(m_cmbTargetTask->currentIndex()).toInt();
         txtX->setText(QString::number(m_userFrames[initialUfIndex].x));
@@ -2077,7 +1843,6 @@ QWidget* RightPanel::buildStepControlWidget()
     }
     return w;
 }
-
 
 // ============================================================
 //  ROBOT CONFIG SAVE/LOAD (UPGRADED)
@@ -2097,6 +1862,8 @@ void RightPanel::saveRobotConfig()
         settings.setValue("elbow_z", m_robotConfigs[i].elbow_z);
         settings.setValue("forearm_x", m_robotConfigs[i].forearm_x);
         settings.setValue("wrist_x", m_robotConfigs[i].wrist_x);
+        settings.setValue("flange_y", m_robotConfigs[i].flange_y); // 🚀 NEW
+        settings.setValue("isCobot", m_robotConfigs[i].isCobot);
     }
     settings.endArray();
     settings.setValue("ActiveRobotIndex", m_activeRobotIndex);
@@ -2115,19 +1882,20 @@ void RightPanel::loadRobotConfig()
             QString path = settings.value("folderPath", "/home/texsonics/Documents/toolocct/step1/").toString();
             QString prefix = settings.value("linkPrefix", "link").toString();
 
-            // Your default lengths from kinematic.cpp
             double bx = settings.value("base_x", 155.0).toDouble();
             double bz = settings.value("base_z", 470.0).toDouble();
             double az = settings.value("arm_z", 604.0).toDouble();
             double ez = settings.value("elbow_z", 200.0).toDouble();
             double fx = settings.value("forearm_x", 640.5).toDouble();
             double wx = settings.value("wrist_x", 100.0).toDouble();
+            double fy = settings.value("flange_y", 109.0).toDouble(); // 🚀 NEW
+            bool isCobot = settings.value("isCobot", false).toBool();
 
-            m_robotConfigs.append(RobotConfigData{name, path, prefix, bx, bz, az, ez, fx, wx});
+            m_robotConfigs.append(RobotConfigData{name, path, prefix, bx, bz, az, ez, fx, wx, fy, isCobot});
         }
     } else {
         m_robotConfigs.append(RobotConfigData{"DEFAULT_ROBOT", "/home/texsonics/Documents/toolocct/step1/", "link",
-                                              155.0, 470.0, 604.0, 200.0, 640.5, 100.0});
+                                              155.0, 470.0, 604.0, 200.0, 640.5, 100.0, 109.0, false}); // 🚀 NEW
     }
     settings.endArray();
     m_activeRobotIndex = settings.value("ActiveRobotIndex", 0).toInt();
@@ -2144,7 +1912,6 @@ QWidget* RightPanel::buildRobotWidget()
     mainLay->setContentsMargins(15, 15, 15, 15);
     mainLay->setSpacing(15);
 
-    // 1. ACTIVE ROBOT STATUS
     QGroupBox *grpStatus = new QGroupBox();
     grpStatus->setStyleSheet("QGroupBox { background:#1a1e2a; border:1px solid #2a2d35; border-radius:6px; margin-top:0px; }");
     QHBoxLayout *statusLay = new QHBoxLayout(grpStatus);
@@ -2154,7 +1921,6 @@ QWidget* RightPanel::buildRobotWidget()
     statusLay->addStretch();
     mainLay->addWidget(grpStatus);
 
-    // 2. ROBOT SELECTOR BAR
     QHBoxLayout *selLay = new QHBoxLayout();
     QComboBox *cmbRobotSelect = new QComboBox();
     cmbRobotSelect->setStyleSheet("QComboBox { background:#0a0d14; color:#00E5FF; border:1px solid #2a2d35; padding:8px; border-radius:4px; font-weight:bold;} QComboBox::drop-down { border:none; }");
@@ -2170,7 +1936,6 @@ QWidget* RightPanel::buildRobotWidget()
     selLay->addWidget(btnDelete);
     mainLay->addLayout(selLay);
 
-    // 3. EDITOR PANEL
     QGroupBox *grpEdit = new QGroupBox("ROBOT FILES & KINEMATICS");
     grpEdit->setStyleSheet("QGroupBox { border:1px solid #30363d; border-radius:4px; font-weight:bold; color:#00E5FF;} QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QGridLayout *eLay = new QGridLayout(grpEdit);
@@ -2179,18 +1944,17 @@ QWidget* RightPanel::buildRobotWidget()
     QString readStyle = "QLineEdit { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace;}";
     QString editStyle = "QLineEdit { background:#0a0d14; color:#F59E0B; border:1px solid #F59E0B; border-radius:3px; padding:6px; font-weight:bold; font-family:monospace;}";
 
-    // Textboxes
     QLineEdit *txtName = new QLineEdit(); txtName->setStyleSheet(readStyle); txtName->setReadOnly(true);
     QLineEdit *txtPath = new QLineEdit(); txtPath->setStyleSheet(readStyle); txtPath->setReadOnly(true);
     QLineEdit *txtPrefix = new QLineEdit(); txtPrefix->setStyleSheet(readStyle); txtPrefix->setReadOnly(true);
 
-    // Kinematics Textboxes
     QLineEdit *txtBX = new QLineEdit(); txtBX->setStyleSheet(readStyle); txtBX->setReadOnly(true);
     QLineEdit *txtBZ = new QLineEdit(); txtBZ->setStyleSheet(readStyle); txtBZ->setReadOnly(true);
     QLineEdit *txtAZ = new QLineEdit(); txtAZ->setStyleSheet(readStyle); txtAZ->setReadOnly(true);
     QLineEdit *txtEZ = new QLineEdit(); txtEZ->setStyleSheet(readStyle); txtEZ->setReadOnly(true);
     QLineEdit *txtFX = new QLineEdit(); txtFX->setStyleSheet(readStyle); txtFX->setReadOnly(true);
     QLineEdit *txtWX = new QLineEdit(); txtWX->setStyleSheet(readStyle); txtWX->setReadOnly(true);
+    QLineEdit *txtFY = new QLineEdit(); txtFY->setStyleSheet(readStyle); txtFY->setReadOnly(true); // 🚀 NEW
 
     QPushButton *btnBrowse = new QPushButton("📂 BROWSE");
     btnBrowse->setStyleSheet("QPushButton{background:#30363d; color:white; font-weight:bold; padding:6px 10px; border-radius:3px;}");
@@ -2200,7 +1964,6 @@ QWidget* RightPanel::buildRobotWidget()
     eLay->addWidget(new QLabel("Folder:"), 1, 0); eLay->addWidget(txtPath, 1, 1); eLay->addWidget(btnBrowse, 1, 2);
     eLay->addWidget(new QLabel("Prefix (e.g. link):"), 2, 0); eLay->addWidget(txtPrefix, 2, 1, 1, 2);
 
-    // Line separator
     QFrame* line = new QFrame(); line->setFrameShape(QFrame::HLine); line->setStyleSheet("border: 1px solid #30363d;");
     eLay->addWidget(line, 3, 0, 1, 3);
 
@@ -2208,10 +1971,15 @@ QWidget* RightPanel::buildRobotWidget()
     eLay->addWidget(new QLabel("Base Z Offset:"), 5, 0); eLay->addWidget(txtBZ, 5, 1, 1, 2);
     eLay->addWidget(new QLabel("Upper Arm Z:"), 6, 0); eLay->addWidget(txtAZ, 6, 1, 1, 2);
     eLay->addWidget(new QLabel("Elbow Z Drop:"), 7, 0); eLay->addWidget(txtEZ, 7, 1, 1, 2);
-    eLay->addWidget(new QLabel("Forearm X:"), 8, 0); eLay->addWidget(txtFX, 8, 1, 1, 2);
-    eLay->addWidget(new QLabel("Wrist to Flange X:"), 9, 0); eLay->addWidget(txtWX, 9, 1, 1, 2);
+    eLay->addWidget(new QLabel("Forearm X (Yellow):"), 8, 0); eLay->addWidget(txtFX, 8, 1, 1, 2);
+    eLay->addWidget(new QLabel("Wrist Z (Purple):"), 9, 0); eLay->addWidget(txtWX, 9, 1, 1, 2);
+    eLay->addWidget(new QLabel("Cobot Flange Y (White):"), 10, 0); eLay->addWidget(txtFY, 10, 1, 1, 2); // 🚀 NEW
 
-    // Action Buttons
+    QCheckBox *chkCobot = new QCheckBox(" COBOT KINEMATICS (UR Style)");
+    chkCobot->setStyleSheet("QCheckBox { color:#10B981; font-weight:bold; font-size: 12px; } QCheckBox::indicator { width:18px; height:18px; }");
+    chkCobot->setEnabled(false);
+    eLay->addWidget(chkCobot, 11, 0, 1, 3);
+
     QHBoxLayout *actLay = new QHBoxLayout();
     QPushButton *btnEdit = new QPushButton("✏️ EDIT CONFIG");
     btnEdit->setProperty("isEditing", false);
@@ -2222,12 +1990,11 @@ QWidget* RightPanel::buildRobotWidget()
 
     actLay->addWidget(btnEdit);
     actLay->addWidget(btnSet);
-    eLay->addLayout(actLay, 10, 0, 1, 3);
+    eLay->addLayout(actLay, 12, 0, 1, 3);
 
     mainLay->addWidget(grpEdit);
     mainLay->addStretch();
 
-    // --- LOGIC & CONNECTIONS ---
     auto updateActiveLabel = [=]() {
         if (m_activeRobotIndex >= 0 && m_activeRobotIndex < m_robotConfigs.size()) {
             lblActiveStatus->setText("🟢 ACTIVE ROBOT: " + m_robotConfigs[m_activeRobotIndex].name);
@@ -2247,10 +2014,11 @@ QWidget* RightPanel::buildRobotWidget()
             txtEZ->setText(QString::number(m_robotConfigs[idx].elbow_z));
             txtFX->setText(QString::number(m_robotConfigs[idx].forearm_x));
             txtWX->setText(QString::number(m_robotConfigs[idx].wrist_x));
+            txtFY->setText(QString::number(m_robotConfigs[idx].flange_y)); // 🚀 NEW
+            chkCobot->setChecked(m_robotConfigs[idx].isCobot);
         }
     };
 
-    // Initialize Dropdown
     for (const auto& r : m_robotConfigs) cmbRobotSelect->addItem(r.name);
     if (m_activeRobotIndex >= 0 && m_activeRobotIndex < m_robotConfigs.size()) {
         cmbRobotSelect->setCurrentIndex(m_activeRobotIndex);
@@ -2263,7 +2031,7 @@ QWidget* RightPanel::buildRobotWidget()
     });
 
     connect(btnAdd, &QPushButton::clicked, [=](){
-        m_robotConfigs.append(RobotConfigData{"NEW_ROBOT", "/home/texsonics/Documents/toolocct/step1/", "link", 155.0, 470.0, 604.0, 200.0, 640.5, 100.0});
+        m_robotConfigs.append(RobotConfigData{"NEW_ROBOT", "/home/texsonics/Documents/toolocct/step1/", "link", 155.0, 470.0, 604.0, 200.0, 640.5, 100.0, 109.0, false}); // 🚀 NEW (Added 109.0)
         cmbRobotSelect->addItem("NEW_ROBOT");
         cmbRobotSelect->setCurrentIndex(m_robotConfigs.size() - 1);
         saveRobotConfig();
@@ -2291,12 +2059,12 @@ QWidget* RightPanel::buildRobotWidget()
     });
 
     connect(btnEdit, &QPushButton::clicked, [=](){
+        chkCobot->setEnabled(true);
         int idx = cmbRobotSelect->currentIndex();
         if (idx < 0) return;
 
         bool isEditing = btnEdit->property("isEditing").toBool();
         if (!isEditing) {
-            // Unlock UI
             txtName->setReadOnly(false); txtName->setStyleSheet(editStyle);
             txtPath->setReadOnly(false); txtPath->setStyleSheet(editStyle);
             txtPrefix->setReadOnly(false); txtPrefix->setStyleSheet(editStyle);
@@ -2306,6 +2074,7 @@ QWidget* RightPanel::buildRobotWidget()
             txtEZ->setReadOnly(false); txtEZ->setStyleSheet(editStyle);
             txtFX->setReadOnly(false); txtFX->setStyleSheet(editStyle);
             txtWX->setReadOnly(false); txtWX->setStyleSheet(editStyle);
+            txtFY->setReadOnly(false); txtFY->setStyleSheet(editStyle); // 🚀 NEW
 
             btnBrowse->setEnabled(true);
             cmbRobotSelect->setEnabled(false);
@@ -2314,7 +2083,6 @@ QWidget* RightPanel::buildRobotWidget()
             btnEdit->setStyleSheet("QPushButton{background:#F59E0B; color:black; font-weight:bold; padding:10px; border-radius:4px;}");
             btnEdit->setProperty("isEditing", true);
         } else {
-            // Save Data
             m_robotConfigs[idx].name = txtName->text();
             m_robotConfigs[idx].folderPath = txtPath->text();
             m_robotConfigs[idx].linkPrefix = txtPrefix->text();
@@ -2324,11 +2092,12 @@ QWidget* RightPanel::buildRobotWidget()
             m_robotConfigs[idx].elbow_z = txtEZ->text().toDouble();
             m_robotConfigs[idx].forearm_x = txtFX->text().toDouble();
             m_robotConfigs[idx].wrist_x = txtWX->text().toDouble();
+            m_robotConfigs[idx].flange_y = txtFY->text().toDouble(); // 🚀 NEW
+            m_robotConfigs[idx].isCobot = chkCobot->isChecked();
 
             cmbRobotSelect->setItemText(idx, m_robotConfigs[idx].name);
             saveRobotConfig();
 
-            // Lock UI
             txtName->setReadOnly(true); txtName->setStyleSheet(readStyle);
             txtPath->setReadOnly(true); txtPath->setStyleSheet(readStyle);
             txtPrefix->setReadOnly(true); txtPrefix->setStyleSheet(readStyle);
@@ -2338,6 +2107,8 @@ QWidget* RightPanel::buildRobotWidget()
             txtEZ->setReadOnly(true); txtEZ->setStyleSheet(readStyle);
             txtFX->setReadOnly(true); txtFX->setStyleSheet(readStyle);
             txtWX->setReadOnly(true); txtWX->setStyleSheet(readStyle);
+            txtFY->setReadOnly(true); txtFY->setStyleSheet(readStyle); // 🚀 NEW
+            chkCobot->setEnabled(false);
 
             btnBrowse->setEnabled(false);
             cmbRobotSelect->setEnabled(true);
@@ -2364,7 +2135,9 @@ QWidget* RightPanel::buildRobotWidget()
                 m_robotConfigs[idx].arm_z,
                 m_robotConfigs[idx].elbow_z,
                 m_robotConfigs[idx].forearm_x,
-                m_robotConfigs[idx].wrist_x
+                m_robotConfigs[idx].wrist_x,
+                m_robotConfigs[idx].flange_y, // 🚀 NEW
+                m_robotConfigs[idx].isCobot
                 );
         }
     });

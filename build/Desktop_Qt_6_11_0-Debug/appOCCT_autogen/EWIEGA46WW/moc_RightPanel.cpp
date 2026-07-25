@@ -77,6 +77,8 @@ template <> constexpr inline auto RightPanel::qt_create_metaobjectdata<qt_meta_t
         "ez",
         "fx",
         "wx",
+        "fy",
+        "isCobot",
         "setGetPointsEnabled",
         "enabled",
         "updateOriginLabel",
@@ -134,21 +136,22 @@ template <> constexpr inline auto RightPanel::qt_create_metaobjectdata<qt_meta_t
             { QMetaType::QString, 30 },
         }}),
         // Signal 'requestMainLoadRobot'
-        QtMocHelpers::SignalData<void(const QString &, const QString &, double, double, double, double, double, double)>(29, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SignalData<void(const QString &, const QString &, double, double, double, double, double, double, double, bool)>(29, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::QString, 30 }, { QMetaType::QString, 31 }, { QMetaType::Double, 32 }, { QMetaType::Double, 33 },
             { QMetaType::Double, 34 }, { QMetaType::Double, 35 }, { QMetaType::Double, 36 }, { QMetaType::Double, 37 },
+            { QMetaType::Double, 38 }, { QMetaType::Bool, 39 },
         }}),
         // Slot 'setGetPointsEnabled'
-        QtMocHelpers::SlotData<void(bool)>(38, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Bool, 39 },
+        QtMocHelpers::SlotData<void(bool)>(40, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 41 },
         }}),
         // Slot 'updateOriginLabel'
-        QtMocHelpers::SlotData<void(double, double, double)>(40, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(double, double, double)>(42, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Double, 8 }, { QMetaType::Double, 9 }, { QMetaType::Double, 10 },
         }}),
         // Slot 'setActiveTab'
-        QtMocHelpers::SlotData<void(int)>(41, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 42 },
+        QtMocHelpers::SlotData<void(int)>(43, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 44 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -186,7 +189,7 @@ void RightPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 10: _t->requestClearTargetMarker(); break;
         case 11: _t->requestClosePanel(); break;
         case 12: _t->requestMainLoadRobot((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 13: _t->requestMainLoadRobot((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[6])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[7])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[8]))); break;
+        case 13: _t->requestMainLoadRobot((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[6])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[7])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[8])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[9])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[10]))); break;
         case 14: _t->setGetPointsEnabled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
         case 15: _t->updateOriginLabel((*reinterpret_cast<std::add_pointer_t<double>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<double>>(_a[3]))); break;
         case 16: _t->setActiveTab((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
@@ -220,7 +223,7 @@ void RightPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
             return;
         if (QtMocHelpers::indexOfMethod<void (RightPanel::*)(const QString & )>(_a, &RightPanel::requestMainLoadRobot, 12))
             return;
-        if (QtMocHelpers::indexOfMethod<void (RightPanel::*)(const QString & , const QString & , double , double , double , double , double , double )>(_a, &RightPanel::requestMainLoadRobot, 13))
+        if (QtMocHelpers::indexOfMethod<void (RightPanel::*)(const QString & , const QString & , double , double , double , double , double , double , double , bool )>(_a, &RightPanel::requestMainLoadRobot, 13))
             return;
     }
 }
@@ -335,8 +338,8 @@ void RightPanel::requestMainLoadRobot(const QString & _t1)
 }
 
 // SIGNAL 13
-void RightPanel::requestMainLoadRobot(const QString & _t1, const QString & _t2, double _t3, double _t4, double _t5, double _t6, double _t7, double _t8)
+void RightPanel::requestMainLoadRobot(const QString & _t1, const QString & _t2, double _t3, double _t4, double _t5, double _t6, double _t7, double _t8, double _t9, bool _t10)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 13, nullptr, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8);
+    QMetaObject::activate<void>(this, &staticMetaObject, 13, nullptr, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10);
 }
 QT_WARNING_POP

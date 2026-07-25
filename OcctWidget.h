@@ -61,8 +61,8 @@ public:
     void processAllEdges(double resolution, int ufIndex = -1);
     QString getOriginText(int ufIndex) const;
 
-    void reloadRobot(const QString& folderPath, const QString& linkPrefix,
-                     double bx, double bz, double az, double ez, double fx, double wx);
+    void reloadRobot(const QString& folderPath, const QString& linkPrefix, double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot = false);
+    double m_rob_fy = 109.0; // 🚀 ADD THIS TO PRIVATE VARS
     void reloadRobot(const QString& folderPath);
 
     void processCurrentSelection(double resolution);
@@ -116,7 +116,9 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
 private:
-
+    int m_loadSessionId = 0; // 🚀 ADD THIS
+    int m_activeSession = 0; // 🚀 ADD THIS
+    bool m_isCobot = false;
     // =========================================================
     // 🚀 MULTI-TASK MAPS (Replaces single instances)
     // =========================================================

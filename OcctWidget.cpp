@@ -941,33 +941,33 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
 
 
 void OcctWidget::paintEvent(QPaintEvent *event)
-                            {
-                                // ✅ MUST BE CALLED: Keeps Qt's internal rendering loop happy
-                                QWidget::paintEvent(event);
+{
+    // ✅ MUST BE CALLED: Keeps Qt's internal rendering loop happy
+    QWidget::paintEvent(event);
 
     if (myView.IsNull()) initOCCT();
-                                myView->Redraw();
-                            }
+    myView->Redraw();
+}
 
 void OcctWidget::resizeEvent(QResizeEvent *event)
-                            {
-                                QWidget::resizeEvent(event);
+{
+    QWidget::resizeEvent(event);
 
     if (!myView.IsNull()) {
-                                    myView->MustBeResized(); // Tell X11 to update the dimensions
+        myView->MustBeResized(); // Tell X11 to update the dimensions
 
         // ✅ NEW: Automatically re-frame the camera when the layout updates!
-                                    // This ensures the grid and text are never cut off after the "MAX" fix.
-                                    myView->FitAll();
+        // This ensures the grid and text are never cut off after the "MAX" fix.
+        myView->FitAll();
 
         myView->Redraw();
-                                }
-                            }
-                            void OcctWidget::mousePressEvent(QMouseEvent *event)
-                            {
-                                myLastMousePos = event->pos();
-                                int x = event->pos().x() * devicePixelRatio();
-                                int y = event->pos().y() * devicePixelRatio();
+    }
+}
+void OcctWidget::mousePressEvent(QMouseEvent *event)
+{
+    myLastMousePos = event->pos();
+    int x = event->pos().x() * devicePixelRatio();
+    int y = event->pos().y() * devicePixelRatio();
 
     if (event->button() == Qt::LeftButton) {
         myContext->MoveTo(x, y, myView, Standard_True);
@@ -1151,23 +1151,18 @@ void OcctWidget::loadDefaultRobot()
 {
     if (myView.IsNull()) initOCCT();
 
-    // Prevent crashing if the user spam-clicks the Load button
-    if (myCurrentLoadIndex != -1) return;
-
-    myCurrentLoadIndex = 0; // Start at link0
+    myCurrentLoadIndex = 0;
+    m_activeSession = m_loadSessionId; // 🚀 LOCK IN THE CURRENT SESSION
 
     emit statusUpdate("⏳ Loading STL Robot Base (link0)...");
-
-    // Trigger the very first part to load after a tiny 50ms UI pause
     QTimer::singleShot(50, this, &OcctWidget::loadNextRobotLink);
 }
 
-
 void OcctWidget::loadNextRobotLink()
 {
-    // ==========================================================
-    // 🚀 Load all 7 parts (link0 to link6)
-    // ==========================================================
+    // 🚀 IF A NEW ROBOT WAS LOADED, ABORT THIS OLD LOOP!
+    if (m_activeSession != m_loadSessionId) return;
+
     if (myCurrentLoadIndex > 6) {
         myBaseTriad = createThickTriad(1.5);
         myTipTriad = createThickTriad(1.2);
@@ -1328,40 +1323,56 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
 {
     if (myRobotLinks.empty()) return;
 
-    // 1. Base Scale (Assuming STLs are in Meters, scale to MM)
     gp_Trsf baseTrsf;
     baseTrsf.SetScale(gp_Pnt(0,0,0), 1000.0);
 
-    // ========================================================
-    // ✅ NEW: GLOBAL WORLD ROTATION
-    // This spins the ENTIRE assembled robot 90 degrees around Z
-    // to match the facing direction of your main project!
-    // ========================================================
-    //gp_Trsf globalRot;
-    // NOTE: If the robot faces backward, just remove the negative sign -> (M_PI / 2.0)
-    //globalRot.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(0,0,1)), -M_PI / 2.0);
+    gp_Pnt orig1, orig2, orig3, orig4, orig5, orig6;
+    gp_Dir axis1, axis2, axis3, axis4, axis5, axis6;
+    gp_Trsf moveToFlange;
 
-    // ========================================================
-    // 2. TRUE ABSOLUTE KINEMATIC ORIGINS (In Millimeters)
-    // ========================================================
-    gp_Pnt orig1(0.0, 0.0, 0.0);                             // J1 Base
-    gp_Pnt orig2(m_rob_bx, 0.0, m_rob_bz);                   // J2 Shoulder
-    gp_Pnt orig3(m_rob_bx, 0.0, m_rob_bz + m_rob_az);        // J3 Elbow
-    gp_Pnt orig4(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez); // J4 Roll
-    gp_Pnt orig5(m_rob_bx + m_rob_fx, 0.0, m_rob_bz + m_rob_az + m_rob_ez); // J5 Pitch
-    gp_Pnt orig6(orig5.X(), orig5.Y(), orig5.Z());           // J6 Intersects J5
+    if (m_isCobot) {
+        orig1 = gp_Pnt(0.0, 0.0, 0.0);
+        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
+        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
+        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig5 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez);
+        orig6 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx);
 
-    // ========================================================
-    // 3. ROTATION AXES (Matching your KDL perfectly)
-    // ========================================================
-    gp_Dir axis1(0, 0, 1); // J1: RotZ
-    gp_Dir axis2(0, 1, 0); // J2: RotY
-    gp_Dir axis3(0, 1, 0); // J3: RotY
-    gp_Dir axis4(1, 0, 0); // J4: RotX
-    gp_Dir axis5(0, 1, 0); // J5: RotY
-    gp_Dir axis6(1, 0, 0); // J6: RotX
+        axis1 = gp_Dir(0, 0, 1);
+        axis2 = gp_Dir(0, 1, 0);
+        axis3 = gp_Dir(0, 1, 0);
+        axis4 = gp_Dir(0, 1, 0);
+        axis5 = gp_Dir(0, 0, 1);
+        axis6 = gp_Dir(0, 1, 0);
 
-    // 4. Create pure rotation transformations around those absolute pins
+        // 🚀 THE FIX: Add the identical twist to the visual Triad so the Blue Arrow points OUT!
+        gp_Trsf flangeTwist;
+        flangeTwist.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), -M_PI / 2.0); // Twist -90 on X
+
+        gp_Trsf flangeTranslation;
+        flangeTranslation.SetTranslation(gp_Vec(m_rob_bx, m_rob_fx + m_rob_fy, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx));
+
+        moveToFlange = flangeTranslation * flangeTwist;
+    } else {
+        // 🚀 INDUSTRIAL KINEMATICS
+        orig1 = gp_Pnt(0.0, 0.0, 0.0);
+        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
+        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
+        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig5 = gp_Pnt(m_rob_bx + m_rob_fx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig6 = gp_Pnt(orig5.X(), orig5.Y(), orig5.Z());
+
+        axis1 = gp_Dir(0, 0, 1); // RotZ
+        axis2 = gp_Dir(0, 1, 0); // RotY
+        axis3 = gp_Dir(0, 1, 0); // RotY
+        axis4 = gp_Dir(1, 0, 0); // RotX
+        axis5 = gp_Dir(0, 1, 0); // RotY
+        axis6 = gp_Dir(1, 0, 0); // RotX
+
+        moveToFlange.SetTranslation(gp_Vec(m_rob_bx + m_rob_fx + m_rob_wx, 0.0, m_rob_bz + m_rob_az + m_rob_ez));
+    }
+
+    // Apply Rotations
     gp_Trsf R1, R2, R3, R4, R5, R6;
     R1.SetRotation(gp_Ax1(orig1, axis1), j1);
     R2.SetRotation(gp_Ax1(orig2, axis2), j2);
@@ -1370,9 +1381,6 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
     R5.SetRotation(gp_Ax1(orig5, axis5), j5);
     R6.SetRotation(gp_Ax1(orig6, axis6), j6);
 
-    // ========================================================
-    // 5. HIERARCHICAL ACCUMULATION
-    // ========================================================
     gp_Trsf accum1 = R1;
     gp_Trsf accum2 = R1 * R2;
     gp_Trsf accum3 = R1 * R2 * R3;
@@ -1380,41 +1388,26 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
     gp_Trsf accum5 = R1 * R2 * R3 * R4 * R5;
     gp_Trsf accum6 = R1 * R2 * R3 * R4 * R5 * R6;
 
-    // ========================================================
-    // 🚀 THE FIX: 'globalRot *'
-    // ========================================================
     if (myRobotLinks.size() > 0) myContext->SetLocation(myRobotLinks[0], TopLoc_Location(baseTrsf));
     if (myRobotLinks.size() > 1) myContext->SetLocation(myRobotLinks[1], TopLoc_Location(accum1 * baseTrsf));
     if (myRobotLinks.size() > 2) myContext->SetLocation(myRobotLinks[2], TopLoc_Location(accum2 * baseTrsf));
     if (myRobotLinks.size() > 3) myContext->SetLocation(myRobotLinks[3], TopLoc_Location(accum3 * baseTrsf));
     if (myRobotLinks.size() > 4) myContext->SetLocation(myRobotLinks[4], TopLoc_Location(accum4 * baseTrsf));
     if (myRobotLinks.size() > 5) myContext->SetLocation(myRobotLinks[5], TopLoc_Location(accum5 * baseTrsf));
-
-    // If your STL robot has a 7th piece (the tool flange):
     if (myRobotLinks.size() > 6) myContext->SetLocation(myRobotLinks[6], TopLoc_Location(accum6 * baseTrsf));
 
-    // ========================================================
-    // ✅ ATTACH THE ARROWS AND TOOL TO THE ROBOT
-    // ========================================================
     if (!myTipTriad.IsNull()) {
-        gp_Trsf moveToFlange;
-        // Shift outward by the Wrist X offset
-        moveToFlange.SetTranslation(gp_Vec(m_rob_bx + m_rob_fx + m_rob_wx, 0.0, m_rob_bz + m_rob_az + m_rob_ez));
-
         gp_Trsf flangeTrsf = accum6 * moveToFlange;
         myLastTipTrsf = flangeTrsf;
 
-        // 2. ATTACH THE TOOL STL EXACTLY TO THE FLANGE
         if (!myToolShape.IsNull()) {
             myContext->SetLocation(myToolShape, TopLoc_Location(flangeTrsf));
         }
 
-        // 3. CALCULATE THE TCP (Flange + Tool Offset) FOR THE MARKER
         gp_Trsf toolOffsetTrsf;
         toolOffsetTrsf.SetTranslation(gp_Vec(m_toolOffsetX, m_toolOffsetY, m_toolOffsetZ));
-        gp_Trsf tcpTrsf = flangeTrsf * toolOffsetTrsf; // 🚀 Math: Shift by Z=150!
+        gp_Trsf tcpTrsf = flangeTrsf * toolOffsetTrsf;
 
-        // 4. MOVE THE MARKER (ARROWS) TO THE REAL TCP TIP!
         myContext->SetLocation(myTipTriad, TopLoc_Location(tcpTrsf));
 
         // ========================================================
@@ -1424,6 +1417,8 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
 
         if (myTrajectoryPoints.empty() || myTrajectoryPoints.back().Distance(currentTCP) > 1.0) {
             myTrajectoryPoints.push_back(currentTCP);
+
+            // Limit trail length to 5000 points to save memory
             if (myTrajectoryPoints.size() > 5000) {
                 myTrajectoryPoints.erase(myTrajectoryPoints.begin());
             }
@@ -1431,6 +1426,7 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
             static qint64 lastTrailRedraw = 0;
             qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
+            // Only redraw every 100ms so we don't freeze the UI
             if (myTrajectoryPoints.size() > 1 && (currentTime - lastTrailRedraw > 100)) {
                 lastTrailRedraw = currentTime;
 
@@ -1457,13 +1453,8 @@ void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, 
         }
     }
 
-    // ========================================================
-    // 🚀 THE FIX FOR THE HANGING TABS AND STUTTERING
-    // ========================================================
     this->update();
 }
-
-
 
 
 
@@ -2113,17 +2104,19 @@ void OcctWidget::calculateCustomEndPoint(double percentage)
 // ==========================================================
 // 🚀 DYNAMIC ROBOT HOT-SWAP
 // ==========================================================
-void OcctWidget::reloadRobot(const QString& folderPath, const QString& linkPrefix,
-                             double bx, double bz, double az, double ez, double fx, double wx)
+void OcctWidget::reloadRobot(const QString& folderPath, const QString& linkPrefix, double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot)
 {
     if (myContext.IsNull()) return;
-    myCurrentLoadIndex = -1;
 
-    // 1. Save new parameters locally
+    m_loadSessionId++; // 🚀 KILLS ANY PREVIOUS ASYNC LOOPS
+    myCurrentLoadIndex = -1;
+    m_isCobot = isCobot;
+
+    // Save new parameters locally
     m_robotFolderPath = folderPath;
     m_robotLinkPrefix = linkPrefix;
     m_rob_bx = bx; m_rob_bz = bz; m_rob_az = az;
-    m_rob_ez = ez; m_rob_fx = fx; m_rob_wx = wx;
+    m_rob_ez = ez; m_rob_fx = fx; m_rob_wx = wx; m_rob_fy = fy;
 
     for (auto& link : myRobotLinks) {
         if (!link.IsNull()) {
