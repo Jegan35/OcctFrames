@@ -47,7 +47,7 @@ RightPanel::RightPanel(ClientBackend *backend, QWidget *parent)
 
     loadUserFramesConfig();
     loadToolFramesConfig();
-    loadRobotConfig(); // 🚀 ADD THIS
+    loadRobotConfig();
     setupUI();
 }
 
@@ -153,35 +153,50 @@ QWidget* RightPanel::buildDxfFileWidget()
     ctrlLayout->setContentsMargins(0, 0, 0, 0);
     ctrlLayout->setSpacing(10);
 
-    // --- ROW 1: Mode & Distance ---
+    // --- ROW 1: Mode, Approach & Distance ---
     QHBoxLayout *row1 = new QHBoxLayout();
-    QLabel *lblMode = new QLabel("SELECTION MODE:");
+
+    QLabel *lblMode = new QLabel("MODE:");
     lblMode->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:11px;");
 
     QComboBox *cmbSelection = new QComboBox();
-    cmbSelection->addItems({"Face (Surface)", "Edge (Line)", "Wire (Contour)" , "Custom (Trim)" });
+    cmbSelection->addItems({"Face", "Edge", "Wire" , "Custom"});
     cmbSelection->setStyleSheet(
-        "QComboBox { background-color:#050608; color:#FFFFFF; border:1px solid #2a2d35; padding:6px 10px; border-radius:4px; font-weight:bold; font-size:12px; }"
+        "QComboBox { background-color:#050608; color:#FFFFFF; border:1px solid #2a2d35; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:11px; }"
         "QComboBox:hover { border:1px solid #00bcd4; } QComboBox::drop-down { border:none; width:20px; }"
         "QComboBox QAbstractItemView { background-color:#0a0d14; color:#FFFFFF; border:1px solid #00bcd4; border-radius:4px; selection-background-color:#00bcd4; outline:none; }");
     connect(cmbSelection, &QComboBox::currentIndexChanged, this, [this](int index){
         if (m_dxfPreviewWidget) m_dxfPreviewWidget->setSelectionMode(index + 1);
     });
 
-    QLabel *lblCount = new QLabel("COUNT: 0");
-    lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:6px 10px; border-radius:4px; border:1px solid #F59E0B;");
+    // 🚀 THE MISSING APPROACH COMBOBOX ADDED HERE!
+    QLabel *lblApproach = new QLabel("APPROACH:");
+    lblApproach->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px;");
 
-    QLabel *lblDist = new QLabel("Distance (mm):");
+    QComboBox *cmbApproach = new QComboBox();
+    cmbApproach->addItems({"Top", "Left", "Right"});
+    cmbApproach->setStyleSheet(
+        "QComboBox { background-color:#050608; color:#10B981; border:1px solid #10B981; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:11px; }"
+        "QComboBox:hover { border:1px solid #34D399; } QComboBox::drop-down { border:none; width:20px; }"
+        );
+
+    QLabel *lblCount = new QLabel("COUNT: 0");
+    lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:4px 8px; border-radius:4px; border:1px solid #F59E0B;");
+
+    QLabel *lblDist = new QLabel("Dist(mm):");
     lblDist->setStyleSheet("color:#00bcd4; font-weight:bold; font-size:11px;");
 
     QLineEdit *txtDistance = new QLineEdit("2.0");
-    txtDistance->setStyleSheet("QLineEdit { background:#1a1e2a; color:#ffffff; border:1px solid #2a2d35; padding:6px; border-radius:4px; font-size:13px; font-family:monospace; } QLineEdit:focus { border-color:#00bcd4; }");
+    txtDistance->setFixedWidth(50);
+    txtDistance->setStyleSheet("QLineEdit { background:#1a1e2a; color:#ffffff; border:1px solid #2a2d35; padding:4px; border-radius:4px; font-size:12px; font-family:monospace; } QLineEdit:focus { border-color:#00bcd4; }");
 
     row1->addWidget(lblMode);
     row1->addWidget(cmbSelection, 1);
+    row1->addWidget(lblApproach);
+    row1->addWidget(cmbApproach, 1);
     row1->addWidget(lblCount);
     row1->addWidget(lblDist);
-    row1->addWidget(txtDistance, 1);
+    row1->addWidget(txtDistance);
     ctrlLayout->addLayout(row1);
 
     // =================================================================
@@ -249,7 +264,7 @@ QWidget* RightPanel::buildDxfFileWidget()
     });
 
     connect(cmbSelection, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int index){
-        if (cmbSelection->currentText() == "Custom (Trim)") {
+        if (cmbSelection->currentText() == "Custom") {
             customTrimWidget->setVisible(true);
             if (m_dxfPreviewWidget) m_dxfPreviewWidget->setSelectionMode(2);
         } else {
@@ -352,18 +367,26 @@ QWidget* RightPanel::buildDxfFileWidget()
         if (m_dxfPreviewWidget) emit m_dxfPreviewWidget->coordinatesExtracted(fileData);
     });
 
-    connect(m_btnGetPoints, &QPushButton::clicked, this, [this, txtDistance, lblFileOrigin](){
+    // 🚀 UPDATED: PASSES THE "APPROACH" STRING PROPERLY
+    connect(m_btnGetPoints, &QPushButton::clicked, this, [this, txtDistance, cmbApproach, lblFileOrigin](){
         double dist = txtDistance->text().toDouble();
         if (dist <= 0.001) dist = 2.0;
-        m_dxfPreviewWidget->processCurrentSelection(dist);
+
+        QString approach = cmbApproach->currentText();
+
+        m_dxfPreviewWidget->processCurrentSelection(dist, approach);
         lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText(0));
     });
 
-    connect(btnFullShape, &QPushButton::clicked, this, [this, txtDistance, lblFileOrigin](){
+    // 🚀 UPDATED: PASSES THE "APPROACH" STRING PROPERLY
+    connect(btnFullShape, &QPushButton::clicked, this, [this, txtDistance, cmbApproach, lblFileOrigin](){
         double dist = txtDistance->text().toDouble();
         if (dist <= 0.001) dist = 2.0;
+
+        QString approach = cmbApproach->currentText();
+
         if (m_dxfPreviewWidget) {
-            m_dxfPreviewWidget->processAllEdges(dist);
+            m_dxfPreviewWidget->processAllEdges(dist, -1, approach);
             lblFileOrigin->setText("3D File Origin -> " + m_dxfPreviewWidget->getOriginText(0));
         }
     });
@@ -373,10 +396,10 @@ QWidget* RightPanel::buildDxfFileWidget()
         int count = m_dxfPreviewWidget->property("selectionCount").toInt();
         if(count > 0) {
             lblCount->setText(QString("COUNT: %1").arg(count));
-            lblCount->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px; background:#064E3B; padding:6px 10px; border-radius:4px; border:1px solid #10B981;");
+            lblCount->setStyleSheet("color:#10B981; font-weight:bold; font-size:11px; background:#064E3B; padding:4px 8px; border-radius:4px; border:1px solid #10B981;");
         } else {
             lblCount->setText("COUNT: 0");
-            lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:6px 10px; border-radius:4px; border:1px solid #F59E0B;");
+            lblCount->setStyleSheet("color:#F59E0B; font-weight:bold; font-size:11px; background:#1a1e2a; padding:4px 8px; border-radius:4px; border:1px solid #F59E0B;");
         }
     });
 
@@ -465,12 +488,23 @@ QWidget* RightPanel::buildDxfFileWidget()
 
                 KDL::JntArray temp_joints = startJoints;
 
+                // 🚀 THE FIX: 32 Smart Seeds to prevent "Out of Reach" Singularities!
                 std::vector<KDL::JntArray> seeds;
                 seeds.push_back(startJoints);
-                double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
-                for(double j0 : j0_opts) {
-                    KDL::JntArray s(6); s(0)=j0; s(1)=-M_PI/4; s(2)=M_PI/2; s(3)=-M_PI/4; s(4)=M_PI/2; s(5)=0.0;
-                    seeds.push_back(s);
+
+                double j1_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
+                double j4_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
+                double j5_opts[] = {M_PI/2, -M_PI/2};
+
+                for(double j1 : j1_opts) {
+                    for(double j4 : j4_opts) {
+                        for(double j5 : j5_opts) {
+                            KDL::JntArray s(6);
+                            s(0)=j1; s(1)=M_PI/6; s(2)=M_PI/3; // J2=30°, J3=60° (Bent elbow)
+                            s(3)=j4; s(4)=j5; s(5)=0.0;
+                            seeds.push_back(s);
+                        }
+                    }
                 }
 
                 int lastReportedPct = -1;
@@ -478,11 +512,9 @@ QWidget* RightPanel::buildDxfFileWidget()
 
                 for (int i = 0; i < totalLines; ++i) {
                     QStringList p = lines[i].split(',');
-                    // 🚀 THE FIX: Make sure we read all 6 values!
                     if (p.size() >= 6) {
                         double x = p[0].toDouble(); double y = p[1].toDouble(); double z = p[2].toDouble();
 
-                        // 🚀 USE THE REAL ORIENTATION FROM THE CSV
                         double target_rx = p[3].toDouble();
                         double target_ry = p[4].toDouble();
                         double target_rz = p[5].toDouble();

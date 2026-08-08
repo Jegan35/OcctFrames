@@ -495,13 +495,14 @@ void OcctWidget::enableOriginSelectionMode()
 // NEW CORE ARCHITECTURE: History, Undo, Redo & CSV Generation
 // ====================================================================
 
+// ==========================================================
+// 🚀 CLEAR SELECTIONS (UPDATED TO CLEAR NEW MARKER)
+// ==========================================================
 void OcctWidget::clearSelections()
 {
-    // Remove all red lines from the screen
     for (const auto& step : myPathHistory) myContext->Remove(step.visualRedPath, Standard_False);
     for (const auto& step : myRedoStack) myContext->Remove(step.visualRedPath, Standard_False);
 
-    // Clear the Start Marker
     if (!myStartPointMarker.IsNull()) {
         myContext->Remove(myStartPointMarker, Standard_False);
         myStartPointMarker.Nullify();
@@ -510,15 +511,16 @@ void OcctWidget::clearSelections()
         myContext->Remove(myStartLabel, Standard_False);
         myStartLabel.Nullify();
     }
+    if (!myOrientationMarker.IsNull()) {
+        myContext->Remove(myOrientationMarker, Standard_False);
+        myOrientationMarker.Nullify();
+    }
 
     myPathHistory.clear();
     myRedoStack.clear();
     myContext->UpdateCurrentViewer();
 
-    // 🚀 THE FIX: Do NOT call regenerateCSV() here, otherwise it destroys the saved file.
-    // Instead, send an empty string to the Right Panel to clear the UI text box.
     emit coordinatesExtracted("");
-
     emit statusUpdate("❌ All marks and selections cleared.");
 }
 // ==========================================================
@@ -580,11 +582,10 @@ void OcctWidget::redoSelection()
     emit statusUpdate(QString("↪️ Redo successful. Current Paths in CSV: %1").arg(myPathHistory.size()));
 }
 
-// Update the function signature to take the parameter
 // ====================================================================
-// 🚀 1. PROCESS CURRENT SELECTION (WITH MULTI-TASK MEMORY)
+// 🚀 PROCESS CURRENT SELECTION (WITH APPROACH PARAMETER)
 // ====================================================================
-void OcctWidget::processCurrentSelection(double resolution)
+void OcctWidget::processCurrentSelection(double resolution, const QString& approach)
 {
     if (myContext.IsNull() || !myContext->HasSelectedShape()) return;
 
@@ -602,7 +603,6 @@ void OcctWidget::processCurrentSelection(double resolution)
         TopoDS_Shape shape = myContext->SelectedShape();
         Handle(AIS_InteractiveObject) selObj = myContext->SelectedInteractive();
 
-        // 🚀 AUTOMATICALLY FIND THE PARENT USERFRAME
         int activeUfIndex = -1;
         for (auto const& [ufIdx, aisPart] : myLoadedParts) {
             if (selObj == aisPart) {
@@ -611,7 +611,6 @@ void OcctWidget::processCurrentSelection(double resolution)
             }
         }
 
-        // Fetch the corresponding origin (Fallback to 0,0,0 if not found)
         gp_Pnt activeOrigin = (activeUfIndex != -1 && myUFOrigins.count(activeUfIndex))
                                   ? myUFOrigins[activeUfIndex]
                                   : gp_Pnt(0,0,0);
@@ -623,57 +622,51 @@ void OcctWidget::processCurrentSelection(double resolution)
 
         myContext->Display(plottedPath, Standard_True);
 
-        // 🚀 SAVE THE ORIGIN TO HISTORY SO REGENERATE CSV DOESN'T BREAK!
-        myPathHistory.push_back({shape, plottedPath, resolution, activeOrigin});
+        // 🚀 SAVE EVERYTHING TO HISTORY (Including the Approach Angle)
+        myPathHistory.push_back({shape, plottedPath, resolution, activeOrigin, approach});
         addedCount++;
 
-        // Pass the ACTIVE ORIGIN into your processing functions
         switch (shape.ShapeType()) {
-        case TopAbs_FACE: processFace(TopoDS::Face(shape), stringOut, resolution, activeOrigin); break;
-        case TopAbs_WIRE: processWire(TopoDS::Wire(shape), stringOut, resolution, activeOrigin); break;
-        case TopAbs_EDGE: processEdge(TopoDS::Edge(shape), stringOut, resolution, activeOrigin); break;
+        case TopAbs_FACE: processFace(TopoDS::Face(shape), stringOut, resolution, activeOrigin, approach); break;
+        case TopAbs_WIRE: processWire(TopoDS::Wire(shape), stringOut, resolution, activeOrigin, approach); break;
+        case TopAbs_EDGE: processEdge(TopoDS::Edge(shape), stringOut, resolution, activeOrigin, approach); break;
         default: break;
         }
 
         myContext->NextSelected();
     }
     myContext->ClearSelected(Standard_True);
-    this->setProperty("selectionCount", 0); // Reset the count mathematically
+    this->setProperty("selectionCount", 0);
     myRedoStack.clear();
 
     emit coordinatesExtracted(txtData);
     regenerateCSV();
     emit statusUpdate(QString("✅ Extracted %1 new path(s). Total Paths: %2").arg(addedCount).arg(myPathHistory.size()));
-
-    // Triggers the UI to flip back to Yellow and display "COUNT: 0"
     emit selectionChanged(false);
 }
+
+// ====================================================================
+// 🚀 REGENERATE CSV (WITH STORED APPROACH ANGLES)
+// ====================================================================
 void OcctWidget::regenerateCSV()
 {
-    if (myPathHistory.empty()) {
-        return;
-    }
+    if (myPathHistory.empty()) return;
 
     QFile file(myCSVPath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        return;
-    }
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
 
     QTextStream out(&file);
 
     for (const auto& step : myPathHistory) {
-        // 🚀 WE NOW PASS THE STORED `step.activeOrigin` BACK INTO THE MATH!
         switch (step.shape.ShapeType()) {
-        case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution, step.activeOrigin); break;
-        case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution, step.activeOrigin); break;
-        case TopAbs_EDGE: processEdge(TopoDS::Edge(step.shape), out, step.resolution, step.activeOrigin); break;
+        case TopAbs_FACE: processFace(TopoDS::Face(step.shape), out, step.resolution, step.activeOrigin, step.approach); break;
+        case TopAbs_WIRE: processWire(TopoDS::Wire(step.shape), out, step.resolution, step.activeOrigin, step.approach); break;
+        case TopAbs_EDGE: processEdge(TopoDS::Edge(step.shape), out, step.resolution, step.activeOrigin, step.approach); break;
         default: break;
         }
     }
-
     file.close();
 }
-
 
 
 
@@ -682,7 +675,9 @@ static gp_Dir g_faceNormal(0, 0, 1);
 static bool g_hasFaceNormal = false;
 
 
-void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
+
+
+void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach)
 {
     Standard_Real umin, umax, vmin, vmax;
     BRepTools::UVBounds(face, umin, umax, vmin, vmax);
@@ -692,36 +687,236 @@ void OcctWidget::processFace(const TopoDS_Face& face, QTextStream& out, double r
     surf->D1((umin + umax) / 2.0, (vmin + vmax) / 2.0, p, d1u, d1v);
 
     gp_Vec normVec = d1u.Crossed(d1v);
-    if (face.Orientation() == TopAbs_REVERSED) normVec.Reverse();
 
-    g_faceNormal = gp_Dir(normVec);
+    // 1. Prevent math crashes on zero-vectors
+    if (normVec.SquareMagnitude() > 1e-10) {
+        if (face.Orientation() == TopAbs_REVERSED) normVec.Reverse();
+        g_faceNormal = gp_Dir(normVec);
+
+        // =================================================================
+        // 🚀 THE FIX: DXF Face Winding Order causes Upside-Down Normals.
+        // If CAD randomly assigns a negative Z normal to a flat face, the
+        // robot will try to reach from under the table and crash!
+        // We force it to point UP (+Z) to perfectly match Edge/Wire behavior.
+        // =================================================================
+        if (g_faceNormal.Z() < -0.01) {
+            g_faceNormal.Reverse();
+        }
+    } else {
+        g_faceNormal = gp_Dir(0, 0, 1);
+    }
+
     g_hasFaceNormal = true;
 
     TopExp_Explorer wireExplorer(face, TopAbs_WIRE);
     for (; wireExplorer.More(); wireExplorer.Next()) {
         TopoDS_Wire wire = TopoDS::Wire(wireExplorer.Current());
-        processWire(wire, out, resolution, activeOrigin);
+        processWire(wire, out, resolution, activeOrigin, approach);
     }
+
     g_hasFaceNormal = false;
 }
 
-void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
+
+
+
+void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, double j5, double j6)
+{
+    if (myRobotLinks.empty()) return;
+
+    gp_Trsf baseTrsf;
+    baseTrsf.SetScale(gp_Pnt(0,0,0), 1000.0);
+
+    gp_Pnt orig1, orig2, orig3, orig4, orig5, orig6;
+    gp_Dir axis1, axis2, axis3, axis4, axis5, axis6;
+    gp_Trsf moveToFlange;
+
+    if (m_isCobot) {
+        orig1 = gp_Pnt(0.0, 0.0, 0.0);
+        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
+        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
+        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig5 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez);
+        orig6 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx);
+
+        axis1 = gp_Dir(0, 0, 1);
+        axis2 = gp_Dir(0, 1, 0);
+        axis3 = gp_Dir(0, 1, 0);
+        axis4 = gp_Dir(0, 1, 0);
+        axis5 = gp_Dir(0, 0, 1);
+        axis6 = gp_Dir(0, 1, 0);
+
+        // 🚀 THE FIX: Removed the artificial -90 twist on X!
+        // Now the visual Triad matches the Base Cartesian Frame exactly at Home position.
+        // Green (Y) will correctly point forward out of the flange.
+        gp_Trsf flangeTranslation;
+        flangeTranslation.SetTranslation(gp_Vec(m_rob_bx, m_rob_fx + m_rob_fy, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx));
+
+        moveToFlange = flangeTranslation;
+    } else {
+        // 🚀 INDUSTRIAL KINEMATICS
+        orig1 = gp_Pnt(0.0, 0.0, 0.0);
+        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
+        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
+        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig5 = gp_Pnt(m_rob_bx + m_rob_fx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
+        orig6 = gp_Pnt(orig5.X(), orig5.Y(), orig5.Z());
+
+        axis1 = gp_Dir(0, 0, 1);
+        axis2 = gp_Dir(0, 1, 0);
+        axis3 = gp_Dir(0, 1, 0);
+        axis4 = gp_Dir(1, 0, 0);
+        axis5 = gp_Dir(0, 1, 0);
+        axis6 = gp_Dir(1, 0, 0);
+
+        moveToFlange.SetTranslation(gp_Vec(m_rob_bx + m_rob_fx + m_rob_wx, 0.0, m_rob_bz + m_rob_az + m_rob_ez));
+    }
+
+    // Apply Rotations
+    gp_Trsf R1, R2, R3, R4, R5, R6;
+    R1.SetRotation(gp_Ax1(orig1, axis1), j1);
+    R2.SetRotation(gp_Ax1(orig2, axis2), j2);
+    R3.SetRotation(gp_Ax1(orig3, axis3), j3);
+    R4.SetRotation(gp_Ax1(orig4, axis4), j4);
+    R5.SetRotation(gp_Ax1(orig5, axis5), j5);
+    R6.SetRotation(gp_Ax1(orig6, axis6), j6);
+
+    gp_Trsf accum1 = R1;
+    gp_Trsf accum2 = R1 * R2;
+    gp_Trsf accum3 = R1 * R2 * R3;
+    gp_Trsf accum4 = R1 * R2 * R3 * R4;
+    gp_Trsf accum5 = R1 * R2 * R3 * R4 * R5;
+    gp_Trsf accum6 = R1 * R2 * R3 * R4 * R5 * R6;
+
+    if (myRobotLinks.size() > 0) myContext->SetLocation(myRobotLinks[0], TopLoc_Location(baseTrsf));
+    if (myRobotLinks.size() > 1) myContext->SetLocation(myRobotLinks[1], TopLoc_Location(accum1 * baseTrsf));
+    if (myRobotLinks.size() > 2) myContext->SetLocation(myRobotLinks[2], TopLoc_Location(accum2 * baseTrsf));
+    if (myRobotLinks.size() > 3) myContext->SetLocation(myRobotLinks[3], TopLoc_Location(accum3 * baseTrsf));
+    if (myRobotLinks.size() > 4) myContext->SetLocation(myRobotLinks[4], TopLoc_Location(accum4 * baseTrsf));
+    if (myRobotLinks.size() > 5) myContext->SetLocation(myRobotLinks[5], TopLoc_Location(accum5 * baseTrsf));
+    if (myRobotLinks.size() > 6) myContext->SetLocation(myRobotLinks[6], TopLoc_Location(accum6 * baseTrsf));
+
+    if (!myTipTriad.IsNull()) {
+        gp_Trsf flangeTrsf = accum6 * moveToFlange;
+        myLastTipTrsf = flangeTrsf;
+
+        if (!myToolShape.IsNull()) {
+            myContext->SetLocation(myToolShape, TopLoc_Location(flangeTrsf));
+        }
+
+        gp_Trsf toolOffsetTrsf;
+        toolOffsetTrsf.SetTranslation(gp_Vec(m_toolOffsetX, m_toolOffsetY, m_toolOffsetZ));
+        gp_Trsf tcpTrsf = flangeTrsf * toolOffsetTrsf;
+
+        myContext->SetLocation(myTipTriad, TopLoc_Location(tcpTrsf));
+
+        // ========================================================
+        // ✅ DRAW THE LIVE TRAJECTORY TRAIL FROM THE TCP
+        // ========================================================
+        gp_Pnt currentTCP = gp_Pnt(0,0,0).Transformed(tcpTrsf);
+
+        if (myTrajectoryPoints.empty() || myTrajectoryPoints.back().Distance(currentTCP) > 1.0) {
+            myTrajectoryPoints.push_back(currentTCP);
+
+            if (myTrajectoryPoints.size() > 5000) {
+                myTrajectoryPoints.erase(myTrajectoryPoints.begin());
+            }
+
+            static qint64 lastTrailRedraw = 0;
+            qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+            if (myTrajectoryPoints.size() > 1 && (currentTime - lastTrailRedraw > 100)) {
+                lastTrailRedraw = currentTime;
+
+                BRepBuilderAPI_MakePolygon polyMaker;
+                for (const auto& pt : myTrajectoryPoints) {
+                    polyMaker.Add(pt);
+                }
+
+                if (polyMaker.IsDone()) {
+                    TopoDS_Wire wire = polyMaker.Wire();
+
+                    if (myTrajectoryShape.IsNull()) {
+                        myTrajectoryShape = new AIS_Shape(wire);
+                        myContext->SetColor(myTrajectoryShape, Quantity_NOC_RED, Standard_False);
+                        myContext->SetWidth(myTrajectoryShape, 3.0, Standard_False);
+                        myContext->Display(myTrajectoryShape, Standard_False);
+                        myContext->Deactivate(myTrajectoryShape);
+                    } else {
+                        myTrajectoryShape->SetShape(wire);
+                        myContext->Redisplay(myTrajectoryShape, Standard_False);
+                    }
+                }
+            }
+        }
+    }
+
+    this->update();
+}
+
+
+
+void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach)
 {
     gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
 
-    // 🚀 REVERTED: The Tool's X-axis (Red Arrow) must point INTO the surface (-normal)
-    gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
+    auto writeCoordinates = [&](const gp_Pnt& point, const gp_Vec& tangentVec, bool drawMarker) {
 
-    gp_Dir reference_dir(1, 0, 0);
-    if (x_axis.IsParallel(reference_dir, 0.01)) {
-        reference_dir = gp_Dir(0, 1, 0);
-    }
+        gp_Dir tangent(1, 0, 0);
+        if (tangentVec.SquareMagnitude() > 1e-10) {
+            tangent = gp_Dir(tangentVec);
+        }
 
-    gp_Dir y_axis = reference_dir.Crossed(x_axis);
-    gp_Dir z_axis = x_axis.Crossed(y_axis);
+        gp_Dir N = normal;
+        gp_Dir T = tangent;
 
-    auto writeCoordinates = [&](const gp_Pnt& point) {
-        gp_Ax3 toolPos(point, z_axis, x_axis);
+        // 🚀 SAFETY: Prevent math crash if lines are perfectly vertical
+        if (N.IsParallel(T, 0.01)) {
+            N = (std::abs(T.Z()) > 0.9) ? gp_Dir(1, 0, 0) : gp_Dir(0, 0, 1);
+        }
+
+        // =======================================================
+        // 🚀 THE MAGIC MATH: EXPLICIT DUAL KINEMATICS
+        // =======================================================
+        gp_Dir x_axis, z_axis;
+
+        if (m_isCobot) {
+            // COBOT: Reaches via Y-Axis (Green). Engine calculates Y = (Z cross X)
+            if (approach == "Left") {
+                z_axis = N;                               // Blue points UP
+                x_axis = gp_Dir(-T.X(), -T.Y(), -T.Z());  // Red points BACKWARD
+            }
+            else if (approach == "Right") {
+                z_axis = N;                               // Blue points UP
+                x_axis = T;                               // Red points FORWARD
+            }
+            else { // "Top" Default
+                z_axis = T;                               // Blue points FORWARD
+                x_axis = T.Crossed(N);                    // Red points RIGHT
+            }
+        } else {
+            // INDUSTRIAL: Reaches via X-Axis (Red).
+            if (approach == "Left") {
+                x_axis = T.Crossed(N);                    // Red points RIGHT (into path)
+                z_axis = N;                               // Blue points UP
+            }
+            else if (approach == "Right") {
+                x_axis = N.Crossed(T);                    // Red points LEFT (into path)
+                z_axis = N;                               // Blue points UP
+            }
+            else { // "Top" Default
+                x_axis = gp_Dir(-N.X(), -N.Y(), -N.Z());  // Red points DOWN (into part)
+                z_axis = T;                               // Blue points FORWARD
+            }
+        }
+
+        gp_Ax3 toolPos = gp_Ax3(point, z_axis, x_axis);
+
+        // Draw the 3D arrows exactly in the center of the line!
+        if (drawMarker) {
+            drawOrientationMarker(toolPos);
+        }
+
 
         gp_Trsf inverseTranslation;
         inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
@@ -735,22 +930,23 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
         KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
                              m.Value(2,1), m.Value(2,2), m.Value(2,3),
                              m.Value(3,1), m.Value(3,2), m.Value(3,3));
-        double rx, ry, rz;
-        RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+        // 🚀 THE FIX: Use Native KDL Euler Extraction for 100% Accuracy
+        double z_rad, y_rad, x_rad;
+        kdlRot.GetEulerZYX(z_rad, y_rad, x_rad);
+        double rx = x_rad * (180.0 / M_PI);
+        double ry = y_rad * (180.0 / M_PI);
+        double rz = z_rad * (180.0 / M_PI);
 
         out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
             << rx << "," << ry << "," << rz << "\n";
     };
 
     BRepTools_WireExplorer explorer(wire);
-
     int totalEdges = 0;
-    for (BRepTools_WireExplorer countExp(wire); countExp.More(); countExp.Next()) {
-        totalEdges++;
-    }
+    for (BRepTools_WireExplorer countExp(wire); countExp.More(); countExp.Next()) totalEdges++;
 
     int currentEdge = 0;
-
     for (; explorer.More(); explorer.Next()) {
         TopoDS_Edge edge = explorer.Current();
         currentEdge++;
@@ -760,72 +956,54 @@ void OcctWidget::processWire(const TopoDS_Wire& wire, QTextStream& out, double r
         if (curve.IsNull()) continue;
 
         BRepAdaptor_Curve adaptor(edge);
-
-        // =======================================================
-        // 🚀 SMART PEN LOGIC: LINE vs CURVE
-        // =======================================================
         GeomAbs_CurveType curveType = adaptor.GetType();
         std::vector<Standard_Real> pointParams;
 
         if (curveType == GeomAbs_Line) {
-            // Straight Line: Only Start and End points! (Saves points, 4 points for a square)
-            pointParams.push_back(first);
-            pointParams.push_back(last);
+            pointParams.push_back(first); pointParams.push_back(last);
         } else {
-            // Curve: High resolution points for smooth arcs and circles!
             GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
             if (discretizer.IsDone()) {
-                for (int i = 1; i <= discretizer.NbPoints(); ++i) {
-                    pointParams.push_back(discretizer.Parameter(i));
-                }
+                for (int i = 1; i <= discretizer.NbPoints(); ++i) pointParams.push_back(discretizer.Parameter(i));
             }
         }
 
-        // =======================================================
-        // 🚀 REVERSE FIX: PREVENT DIAGONAL JUMPS ON SQUARES!
-        // =======================================================
-        if (edge.Orientation() == TopAbs_REVERSED) {
-            std::reverse(pointParams.begin(), pointParams.end());
-        }
+        if (edge.Orientation() == TopAbs_REVERSED) std::reverse(pointParams.begin(), pointParams.end());
 
-        // =======================================================
-        // Process the Generated Points
-        // =======================================================
         for (size_t i = 0; i < pointParams.size(); ++i) {
-
-            // Prevent duplicate coordinates at corners
             if (currentEdge > 1 && i == 0) continue;
 
             Standard_Real param = pointParams[i];
-            gp_Pnt pt;
-            gp_Vec tangentVec;
+            gp_Pnt pt; gp_Vec tangentVec;
             adaptor.D1(param, pt, tangentVec);
 
+            // Find the absolute Center of the line to draw the arrows
+            bool isCenterPoint = (i == pointParams.size() / 2);
+
             if (!m_isFirstPointFound) {
-                gp_Ax3 startPos(pt, z_axis, x_axis);
-                drawStartMarker(startPos.Location());
+                drawStartMarker(pt);
                 m_isFirstPointFound = true;
             }
 
-            // 🚀 Z-HOP APPROACH: 10mm
             if (currentEdge == 1 && i == 0) {
                 gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 30.0);
-                writeCoordinates(approachPt);
+                writeCoordinates(approachPt, tangentVec, false);
             }
 
-            // 📍 ACTUAL SURFACE POINT
-            writeCoordinates(pt);
+            writeCoordinates(pt, tangentVec, isCenterPoint);
 
-            // 🚀 Z-HOP RETRACT: 10mm
             if (currentEdge == totalEdges && i == (pointParams.size() - 1)) {
                 gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 30.0);
-                writeCoordinates(retractPt);
+                writeCoordinates(retractPt, tangentVec, false);
             }
         }
     }
 }
 
-void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin)
+// ====================================================================
+// 🚀 PROCESS EDGE
+// ====================================================================
+void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach)
 {
     Standard_Real first, last;
     Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
@@ -849,49 +1027,78 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
     }
 
     BRepAdaptor_Curve adaptor(edge);
-
-    // =======================================================
-    // 🚀 SMART PEN LOGIC: LINE vs CURVE
-    // =======================================================
     GeomAbs_CurveType curveType = adaptor.GetType();
     std::vector<Standard_Real> pointParams;
 
     if (curveType == GeomAbs_Line) {
-        // Straight Line: Only Start and End points
-        pointParams.push_back(first);
-        pointParams.push_back(last);
+        pointParams.push_back(first); pointParams.push_back(last);
     } else {
-        // Curve/Arc: High resolution points
         GCPnts_UniformAbscissa discretizer(adaptor, resolution, first, last);
         if (discretizer.IsDone()) {
-            for (int i = 1; i <= discretizer.NbPoints(); ++i) {
-                pointParams.push_back(discretizer.Parameter(i));
-            }
+            for (int i = 1; i <= discretizer.NbPoints(); ++i) pointParams.push_back(discretizer.Parameter(i));
         }
     }
 
-    // =======================================================
-    // 🚀 REVERSE FIX: PREVENT DIAGONAL JUMPS!
-    // =======================================================
-    if (edge.Orientation() == TopAbs_REVERSED) {
-        std::reverse(pointParams.begin(), pointParams.end());
-    }
+    if (edge.Orientation() == TopAbs_REVERSED) std::reverse(pointParams.begin(), pointParams.end());
 
     gp_Dir normal = g_hasFaceNormal ? g_faceNormal : gp_Dir(0, 0, 1);
 
-    // 🚀 REVERTED: The Tool's X-axis (Red Arrow) must point INTO the surface (-normal)
-    gp_Dir x_axis(-normal.X(), -normal.Y(), -normal.Z());
+    auto writeCoordinates = [&](const gp_Pnt& point, const gp_Vec& tangentVec, bool drawMarker) {
 
-    gp_Dir reference_dir(1, 0, 0);
-    if (x_axis.IsParallel(reference_dir, 0.01)) {
-        reference_dir = gp_Dir(0, 1, 0);
-    }
+        gp_Dir tangent(1, 0, 0);
+        if (tangentVec.SquareMagnitude() > 1e-10) {
+            tangent = gp_Dir(tangentVec);
+        }
 
-    gp_Dir y_axis = reference_dir.Crossed(x_axis);
-    gp_Dir z_axis = x_axis.Crossed(y_axis);
+        gp_Dir N = normal;
+        gp_Dir T = tangent;
 
-    auto writeCoordinates = [&](const gp_Pnt& point) {
-        gp_Ax3 toolPos(point, z_axis, x_axis);
+        // 🚀 SAFETY: Prevent math crash if lines are perfectly vertical
+        if (N.IsParallel(T, 0.01)) {
+            N = (std::abs(T.Z()) > 0.9) ? gp_Dir(1, 0, 0) : gp_Dir(0, 0, 1);
+        }
+
+        // =======================================================
+        // 🚀 THE MAGIC MATH: EXPLICIT DUAL KINEMATICS
+        // =======================================================
+        gp_Dir x_axis, z_axis;
+
+        if (m_isCobot) {
+            // COBOT: Reaches via Y-Axis (Green). Engine calculates Y = (Z cross X)
+            if (approach == "Left") {
+                z_axis = N;                               // Blue points UP
+                x_axis = gp_Dir(-T.X(), -T.Y(), -T.Z());  // Red points BACKWARD
+            }
+            else if (approach == "Right") {
+                z_axis = N;                               // Blue points UP
+                x_axis = T;                               // Red points FORWARD
+            }
+            else { // "Top" Default
+                z_axis = T;                               // Blue points FORWARD
+                x_axis = T.Crossed(N);                    // Red points RIGHT
+            }
+        } else {
+            // INDUSTRIAL: Reaches via X-Axis (Red).
+            if (approach == "Left") {
+                x_axis = T.Crossed(N);                    // Red points RIGHT (into path)
+                z_axis = N;                               // Blue points UP
+            }
+            else if (approach == "Right") {
+                x_axis = N.Crossed(T);                    // Red points LEFT (into path)
+                z_axis = N;                               // Blue points UP
+            }
+            else { // "Top" Default
+                x_axis = gp_Dir(-N.X(), -N.Y(), -N.Z());  // Red points DOWN (into part)
+                z_axis = T;                               // Blue points FORWARD
+            }
+        }
+
+        gp_Ax3 toolPos = gp_Ax3(point, z_axis, x_axis);
+
+        // Draw the 3D arrows exactly in the center of the line!
+        if (drawMarker) {
+            drawOrientationMarker(toolPos);
+        }
 
         gp_Trsf inverseTranslation;
         inverseTranslation.SetTranslation(gp_Vec(-activeOrigin.X(), -activeOrigin.Y(), -activeOrigin.Z()));
@@ -905,8 +1112,13 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
         KDL::Rotation kdlRot(m.Value(1,1), m.Value(1,2), m.Value(1,3),
                              m.Value(2,1), m.Value(2,2), m.Value(2,3),
                              m.Value(3,1), m.Value(3,2), m.Value(3,3));
-        double rx, ry, rz;
-        RobotMath::getUnifiedEulerDegrees(kdlRot, rx, ry, rz);
+
+        // 🚀 THE FIX: Use Native KDL Euler Extraction
+        double z_rad, y_rad, x_rad;
+        kdlRot.GetEulerZYX(z_rad, y_rad, x_rad);
+        double rx = x_rad * (180.0 / M_PI);
+        double ry = y_rad * (180.0 / M_PI);
+        double rz = z_rad * (180.0 / M_PI);
 
         out << toolPos.Location().X() << "," << toolPos.Location().Y() << "," << toolPos.Location().Z() << ","
             << rx << "," << ry << "," << rz << "\n";
@@ -914,34 +1126,33 @@ void OcctWidget::processEdge(const TopoDS_Edge& edge, QTextStream& out, double r
 
     for (size_t i = 0; i < pointParams.size(); ++i) {
         Standard_Real param = pointParams[i];
-        gp_Pnt pt;
-        gp_Vec tangentVec;
+        gp_Pnt pt; gp_Vec tangentVec;
         adaptor.D1(param, pt, tangentVec);
 
+        bool isCenterPoint = (i == pointParams.size() / 2);
+
         if (!m_isFirstPointFound) {
-            if (!isTrimmedEdge) {
-                gp_Ax3 startPos(pt, z_axis, x_axis);
-                drawStartMarker(startPos.Location());
-            }
+            if (!isTrimmedEdge) drawStartMarker(pt);
             m_isFirstPointFound = true;
         }
 
-        // 🚀 Z-HOP APPROACH: 10mm
         if (i == 0) {
             gp_Pnt approachPt = pt.Translated(gp_Vec(normal) * 30.0);
-            writeCoordinates(approachPt);
+            writeCoordinates(approachPt, tangentVec, false);
         }
 
-        // 📍 ACTUAL SURFACE POINT
-        writeCoordinates(pt);
+        writeCoordinates(pt, tangentVec, isCenterPoint);
 
-        // 🚀 Z-HOP RETRACT: 10mm
         if (i == (pointParams.size() - 1)) {
             gp_Pnt retractPt = pt.Translated(gp_Vec(normal) * 30.0);
-            writeCoordinates(retractPt);
+            writeCoordinates(retractPt, tangentVec, false);
         }
     }
 }
+
+
+
+
 
 
 
@@ -1302,142 +1513,6 @@ void OcctWidget::loadNextRobotLink()
 
 
 
-
-
-void OcctWidget::updateRobotPosture(double j1, double j2, double j3, double j4, double j5, double j6)
-{
-    if (myRobotLinks.empty()) return;
-
-    gp_Trsf baseTrsf;
-    baseTrsf.SetScale(gp_Pnt(0,0,0), 1000.0);
-
-    gp_Pnt orig1, orig2, orig3, orig4, orig5, orig6;
-    gp_Dir axis1, axis2, axis3, axis4, axis5, axis6;
-    gp_Trsf moveToFlange;
-
-    if (m_isCobot) {
-        orig1 = gp_Pnt(0.0, 0.0, 0.0);
-        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
-        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
-        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
-        orig5 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez);
-        orig6 = gp_Pnt(m_rob_bx, m_rob_fx, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx);
-
-        axis1 = gp_Dir(0, 0, 1);
-        axis2 = gp_Dir(0, 1, 0);
-        axis3 = gp_Dir(0, 1, 0);
-        axis4 = gp_Dir(0, 1, 0);
-        axis5 = gp_Dir(0, 0, 1);
-        axis6 = gp_Dir(0, 1, 0);
-
-        // 🚀 THE FIX: Twist -90 on X so the Blue Arrow (Z) points OUT!
-        gp_Trsf flangeTwist;
-        flangeTwist.SetRotation(gp_Ax1(gp_Pnt(0,0,0), gp_Dir(1,0,0)), -M_PI / 2.0);
-
-        gp_Trsf flangeTranslation;
-        flangeTranslation.SetTranslation(gp_Vec(m_rob_bx, m_rob_fx + m_rob_fy, m_rob_bz + m_rob_az + m_rob_ez + m_rob_wx));
-
-        moveToFlange = flangeTranslation * flangeTwist;
-    } else {
-        // 🚀 INDUSTRIAL KINEMATICS
-        orig1 = gp_Pnt(0.0, 0.0, 0.0);
-        orig2 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz);
-        orig3 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az);
-        orig4 = gp_Pnt(m_rob_bx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
-        orig5 = gp_Pnt(m_rob_bx + m_rob_fx, 0.0, m_rob_bz + m_rob_az + m_rob_ez);
-        orig6 = gp_Pnt(orig5.X(), orig5.Y(), orig5.Z());
-
-        axis1 = gp_Dir(0, 0, 1);
-        axis2 = gp_Dir(0, 1, 0);
-        axis3 = gp_Dir(0, 1, 0);
-        axis4 = gp_Dir(1, 0, 0);
-        axis5 = gp_Dir(0, 1, 0);
-        axis6 = gp_Dir(1, 0, 0);
-
-        moveToFlange.SetTranslation(gp_Vec(m_rob_bx + m_rob_fx + m_rob_wx, 0.0, m_rob_bz + m_rob_az + m_rob_ez));
-    }
-
-    // Apply Rotations
-    gp_Trsf R1, R2, R3, R4, R5, R6;
-    R1.SetRotation(gp_Ax1(orig1, axis1), j1);
-    R2.SetRotation(gp_Ax1(orig2, axis2), j2);
-    R3.SetRotation(gp_Ax1(orig3, axis3), j3);
-    R4.SetRotation(gp_Ax1(orig4, axis4), j4);
-    R5.SetRotation(gp_Ax1(orig5, axis5), j5);
-    R6.SetRotation(gp_Ax1(orig6, axis6), j6);
-
-    gp_Trsf accum1 = R1;
-    gp_Trsf accum2 = R1 * R2;
-    gp_Trsf accum3 = R1 * R2 * R3;
-    gp_Trsf accum4 = R1 * R2 * R3 * R4;
-    gp_Trsf accum5 = R1 * R2 * R3 * R4 * R5;
-    gp_Trsf accum6 = R1 * R2 * R3 * R4 * R5 * R6;
-
-    if (myRobotLinks.size() > 0) myContext->SetLocation(myRobotLinks[0], TopLoc_Location(baseTrsf));
-    if (myRobotLinks.size() > 1) myContext->SetLocation(myRobotLinks[1], TopLoc_Location(accum1 * baseTrsf));
-    if (myRobotLinks.size() > 2) myContext->SetLocation(myRobotLinks[2], TopLoc_Location(accum2 * baseTrsf));
-    if (myRobotLinks.size() > 3) myContext->SetLocation(myRobotLinks[3], TopLoc_Location(accum3 * baseTrsf));
-    if (myRobotLinks.size() > 4) myContext->SetLocation(myRobotLinks[4], TopLoc_Location(accum4 * baseTrsf));
-    if (myRobotLinks.size() > 5) myContext->SetLocation(myRobotLinks[5], TopLoc_Location(accum5 * baseTrsf));
-    if (myRobotLinks.size() > 6) myContext->SetLocation(myRobotLinks[6], TopLoc_Location(accum6 * baseTrsf));
-
-    if (!myTipTriad.IsNull()) {
-        gp_Trsf flangeTrsf = accum6 * moveToFlange;
-        myLastTipTrsf = flangeTrsf;
-
-        if (!myToolShape.IsNull()) {
-            myContext->SetLocation(myToolShape, TopLoc_Location(flangeTrsf));
-        }
-
-        gp_Trsf toolOffsetTrsf;
-        toolOffsetTrsf.SetTranslation(gp_Vec(m_toolOffsetX, m_toolOffsetY, m_toolOffsetZ));
-        gp_Trsf tcpTrsf = flangeTrsf * toolOffsetTrsf;
-
-        myContext->SetLocation(myTipTriad, TopLoc_Location(tcpTrsf));
-
-        // ========================================================
-        // ✅ DRAW THE LIVE TRAJECTORY TRAIL FROM THE TCP
-        // ========================================================
-        gp_Pnt currentTCP = gp_Pnt(0,0,0).Transformed(tcpTrsf);
-
-        if (myTrajectoryPoints.empty() || myTrajectoryPoints.back().Distance(currentTCP) > 1.0) {
-            myTrajectoryPoints.push_back(currentTCP);
-
-            if (myTrajectoryPoints.size() > 5000) {
-                myTrajectoryPoints.erase(myTrajectoryPoints.begin());
-            }
-
-            static qint64 lastTrailRedraw = 0;
-            qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-
-            if (myTrajectoryPoints.size() > 1 && (currentTime - lastTrailRedraw > 100)) {
-                lastTrailRedraw = currentTime;
-
-                BRepBuilderAPI_MakePolygon polyMaker;
-                for (const auto& pt : myTrajectoryPoints) {
-                    polyMaker.Add(pt);
-                }
-
-                if (polyMaker.IsDone()) {
-                    TopoDS_Wire wire = polyMaker.Wire();
-
-                    if (myTrajectoryShape.IsNull()) {
-                        myTrajectoryShape = new AIS_Shape(wire);
-                        myContext->SetColor(myTrajectoryShape, Quantity_NOC_RED, Standard_False);
-                        myContext->SetWidth(myTrajectoryShape, 3.0, Standard_False);
-                        myContext->Display(myTrajectoryShape, Standard_False);
-                        myContext->Deactivate(myTrajectoryShape);
-                    } else {
-                        myTrajectoryShape->SetShape(wire);
-                        myContext->Redisplay(myTrajectoryShape, Standard_False);
-                    }
-                }
-            }
-        }
-    }
-
-    this->update();
-}
 
 
 
@@ -1926,7 +2001,7 @@ void OcctWidget::transformLoadedPart(int ufIndex, double dx, double dy, double d
 // ====================================================================
 // 🚀 NEW: ONE-CLICK FULL SHAPE EXTRACTION (SORTED & CONTINUOUS)
 // ====================================================================
-void OcctWidget::processAllEdges(double resolution, int ufIndex)
+void OcctWidget::processAllEdges(double resolution, int ufIndex, const QString& approach)
 {
     if (myContext.IsNull() || myLoadedParts.empty()) {
         emit statusUpdate("⚠️ Load a part first!");
@@ -1940,7 +2015,6 @@ void OcctWidget::processAllEdges(double resolution, int ufIndex)
     QString txtData;
     QTextStream stringOut(&txtData);
 
-    // 🚀 Find the target part! If -1, default to the first available part.
     int targetUf = (ufIndex != -1) ? ufIndex : myLoadedParts.begin()->first;
 
     if (!myLoadedParts.count(targetUf)) {
@@ -1954,56 +2028,46 @@ void OcctWidget::processAllEdges(double resolution, int ufIndex)
         return;
     }
 
-    // 🚀 Fetch the active origin for this specific Task
     gp_Pnt activeOrigin = myUFOrigins.count(targetUf) ? myUFOrigins[targetUf] : gp_Pnt(0,0,0);
 
     TopoDS_Shape rawShape = aisShape->Shape();
     gp_Trsf currentTrsf = myContext->Location(aisShape).Transformation();
     TopoDS_Shape transformedShape = BRepBuilderAPI_Transform(rawShape, currentTrsf).Shape();
 
-    // ========================================================================
-    // 🚀 THE FIX: STITCH LOOSE EDGES INTO A CONTINUOUS, SORTED LOOP!
-    // ========================================================================
     TopTools_ListOfShape edgeList;
     TopExp_Explorer edgeExplorer(transformedShape, TopAbs_EDGE);
 
-    // 1. Gather all the random loose lines
     for (; edgeExplorer.More(); edgeExplorer.Next()) {
         edgeList.Append(TopoDS::Edge(edgeExplorer.Current()));
     }
 
-    // 2. Put them in the Wire Maker. It automatically sorts them end-to-end!
     BRepBuilderAPI_MakeWire wireMaker;
     wireMaker.Add(edgeList);
 
     if (wireMaker.IsDone()) {
-        // 3. Extract the perfect continuous loop
         TopoDS_Wire sortedWire = wireMaker.Wire();
 
-        // Turn the continuous loop RED
         Handle(AIS_Shape) plottedPath = new AIS_Shape(sortedWire);
         myContext->SetColor(plottedPath, Quantity_NOC_RED, Standard_False);
         myContext->SetWidth(plottedPath, 3.0, Standard_False);
         myContext->Display(plottedPath, Standard_True);
 
-        // 🚀 SAVE ORIGIN TO HISTORY (So CSV regeneration works later)
-        myPathHistory.push_back({sortedWire, plottedPath, resolution, activeOrigin});
+        myPathHistory.push_back({sortedWire, plottedPath, resolution, activeOrigin, approach});
         addedCount++;
 
-        // 4. Send the SORTED loop to the point generator (passing active origin)
-        processWire(sortedWire, stringOut, resolution, activeOrigin);
+        processWire(sortedWire, stringOut, resolution, activeOrigin, approach);
     } else {
         emit statusUpdate("⚠️ Could not stitch lines. Make sure the DXF shape is a closed loop!");
         return;
     }
-    // ========================================================================
 
     myRedoStack.clear();
     emit coordinatesExtracted(txtData);
     regenerateCSV();
-
     emit statusUpdate("✅ FULL SHAPE EXTRACTED as a smooth, continuous path!");
 }
+
+
 
 // ==========================================================
 // 🚀 CALCULATE CUSTOM START POINT & MOVE LABEL
@@ -2227,4 +2291,25 @@ void OcctWidget::clearLoadedPart(int ufIndex)
         emit statusUpdate("🗑️ File cleared from view.");
         myView->Redraw();
     }
+}
+// ==========================================================
+// 🚀 DRAW 3D ORIENTATION MARKER (AT CENTER OF PATH)
+// ==========================================================
+void OcctWidget::drawOrientationMarker(const gp_Ax3& pos)
+{
+    if (myContext.IsNull()) return;
+
+    if (!myOrientationMarker.IsNull()) {
+        myContext->Remove(myOrientationMarker, Standard_False);
+    }
+
+    // Create a 3D Arrow Triad (scaled down slightly to fit on edges)
+    myOrientationMarker = createThickTriad(0.8);
+
+    gp_Trsf trsf;
+    trsf.SetDisplacement(gp_Ax3(gp_Pnt(0,0,0), gp_Dir(0,0,1), gp_Dir(1,0,0)), pos);
+
+    myContext->SetLocation(myOrientationMarker, TopLoc_Location(trsf));
+    myContext->SetDisplayMode(myOrientationMarker, 1, Standard_False);
+    myContext->Display(myOrientationMarker, Standard_True);
 }

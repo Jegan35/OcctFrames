@@ -15,7 +15,7 @@
 
 #include "kinematic.h"
 #include "RightPanel.h"
-#include "ur_kinematics.h"
+#include "cobotkinematics.h"
 
 extern KDL::Chain KDLChain;
 extern KDL::JntArray KDLJointMin;
@@ -42,17 +42,12 @@ void ClientBackend::calculateAndRunHome()
     m_localJointTrajectory.clear();
 
     double start_j[6] = { m_j1, m_j2, m_j3, m_j4, m_j5, m_j6 };
-
-    // 🚀 DYNAMIC HOME POSITION
     double target_j[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
     if (m_isCobot) {
-        // Cobot Home: J3 at 90°, J5 at -90°
-       // target_j[0] = 180.0;
         target_j[2] = 90.0;
         target_j[4] = -90.0;
     } else {
-        // Industrial Home: J5 at 90° to break singularity
         target_j[4] = 90.0;
     }
 
@@ -61,7 +56,6 @@ void ClientBackend::calculateAndRunHome()
         D = std::max(D, std::abs(target_j[i] - start_j[i]));
     }
 
-    // If we are already at the home position
     if (D < 0.001) {
         m_j1 = target_j[0];
         m_j2 = target_j[1];
@@ -74,7 +68,12 @@ void ClientBackend::calculateAndRunHome()
             KDLJointCur(i) = target_j[i] * (M_PI / 180.0);
         }
 
-        m_kinematics.Fk();
+        if (m_isCobot) {
+            m_cobot_kinematics.Fk();
+        } else {
+            m_kinematics.Fk();
+        }
+
         updateUIWithUserFrame();
         QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
         return;
@@ -101,7 +100,6 @@ void ClientBackend::calculateAndRunHome()
         m_localJointTrajectory.append(jp);
     }
 
-    // Snap exactly to target_j at the end of the trajectory
     JointPoint finalJp;
     finalJp.j1 = target_j[0];
     finalJp.j2 = target_j[1];
@@ -115,10 +113,6 @@ void ClientBackend::calculateAndRunHome()
     m_playbackIndex = 0;
     m_playbackTimer->start(16);
 }
-
-
-
-
 
 void ClientBackend::setGlobalSpeed(int percent) { m_globalSpeed = percent; }
 void ClientBackend::setCartesianSpeed(double mms) { m_cartSpeed = mms; }
@@ -200,7 +194,6 @@ void ClientBackend::executeStepJog()
         KDL::Frame target_flange_base = (m_userFrame * current_user_tcp) * m_toolFrame.Inverse();
 
         if (m_isCobot) {
-            // 🚀 PERFECT ALGEBRAIC REVERSE: Compute the exact offset applied in Fk()
             double q_home[6] = { 0.0, -M_PI_2, 0.0, -M_PI_2, 0.0, 0.0 };
             double T_home[16];
             ur::forward(q_home, T_home);
@@ -210,54 +203,69 @@ void ClientBackend::executeStepJog()
                 T_home[8], T_home[9], T_home[10]
                 );
 
-            // Reverse the rotation offset before solving IK
             KDL::Rotation R_ur = target_flange_base.M * R_home;
 
             double T[16];
-            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2); T[3] = target_flange_base.p.x() / 1000.0;
-            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2); T[7] = target_flange_base.p.y() / 1000.0;
-            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10] = R_ur(2,2); T[11] = target_flange_base.p.z() / 1000.0;
+            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2);
+            T[3] = target_flange_base.p.x() / 1000.0;
+            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2);
+            T[7] = target_flange_base.p.y() / 1000.0;
+            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10]= R_ur(2,2);
+            T[11]= target_flange_base.p.z() / 1000.0;
             T[12] = 0; T[13] = 0; T[14] = 0; T[15] = 1;
 
             double q_sols[48];
-            int n_sols = ur::inverse(T, q_sols);
+            int n_sols = ur::inverse(T, q_sols, KDLJointCur(5));
 
             if (n_sols > 0) {
                 double min_diff = 1e9;
-                int best_sol = 0;
+                int best_sol = -1;
 
-                double cur_ur[6] = {
-                    KDLJointCur(0),
-                    KDLJointCur(1) - M_PI_2,
-                    KDLJointCur(2),
-                    KDLJointCur(3) - M_PI_2,
-                    KDLJointCur(4),
-                    KDLJointCur(5)
+                auto normalize = [](double angle) {
+                    while(angle > M_PI) angle -= 2.0*M_PI;
+                    while(angle < -M_PI) angle += 2.0*M_PI;
+                    return angle;
                 };
 
                 for (int s=0; s<n_sols; s++) {
+                    double sol[6];
+                    sol[0] = normalize(q_sols[s*6 + 0]);
+                    sol[1] = normalize(q_sols[s*6 + 1] + M_PI_2);
+                    sol[2] = normalize(q_sols[s*6 + 2]);
+                    sol[3] = normalize(q_sols[s*6 + 3] + M_PI_2);
+                    sol[4] = normalize(q_sols[s*6 + 4]);
+                    sol[5] = normalize(q_sols[s*6 + 5]);
+
+                    // 1. LIMIT SHIELD
+                    bool limits_ok = true;
+                    for (int j=0; j<6; j++) {
+                        if (sol[j] < KDLJointMin(j) || sol[j] > KDLJointMax(j)) { limits_ok = false; break; }
+                    }
+                    if (!limits_ok) continue;
+
+                    // 2. SMOOTHNESS
                     double diff = 0;
                     for (int j=0; j<6; j++) {
-                        double j_diff = q_sols[s*6 + j] - cur_ur[j];
-                        while(j_diff > M_PI) j_diff -= 2.0*M_PI;
-                        while(j_diff < -M_PI) j_diff += 2.0*M_PI;
-                        diff += std::abs(j_diff);
+                        diff += std::abs(normalize(sol[j] - KDLJointCur(j)));
                     }
+
+                    // 3. ELBOW-UP PENALTY
+                    if (sol[2] < 0.0) diff += 1000.0;
+
                     if (diff < min_diff) { min_diff = diff; best_sol = s; }
                 }
 
-                for (int j=0; j<6; j++) {
-                    double j_diff = q_sols[best_sol*6 + j] - cur_ur[j];
-                    while(j_diff > M_PI) { q_sols[best_sol*6 + j] -= 2.0*M_PI; j_diff -= 2.0*M_PI; }
-                    while(j_diff < -M_PI) { q_sols[best_sol*6 + j] += 2.0*M_PI; j_diff += 2.0*M_PI; }
+                if (best_sol != -1) {
+                    m_j1 = normalize(q_sols[best_sol*6 + 0]) * (180.0 / M_PI);
+                    m_j2 = normalize(q_sols[best_sol*6 + 1] + M_PI_2) * (180.0 / M_PI);
+                    m_j3 = normalize(q_sols[best_sol*6 + 2]) * (180.0 / M_PI);
+                    m_j4 = normalize(q_sols[best_sol*6 + 3] + M_PI_2) * (180.0 / M_PI);
+                    m_j5 = normalize(q_sols[best_sol*6 + 4]) * (180.0 / M_PI);
+                    m_j6 = normalize(q_sols[best_sol*6 + 5]) * (180.0 / M_PI);
+                } else {
+                    emit systemErrorTriggered("Workspace Limit Reached!\nSafe IK Solution not found. Physical limit or elbow floor collision prevented.");
+                    return;
                 }
-
-                m_j1 = q_sols[best_sol*6 + 0] * (180.0 / M_PI);
-                m_j2 = (q_sols[best_sol*6 + 1] + M_PI_2) * (180.0 / M_PI);
-                m_j3 = q_sols[best_sol*6 + 2] * (180.0 / M_PI);
-                m_j4 = (q_sols[best_sol*6 + 3] + M_PI_2) * (180.0 / M_PI);
-                m_j5 = q_sols[best_sol*6 + 4] * (180.0 / M_PI);
-                m_j6 = q_sols[best_sol*6 + 5] * (180.0 / M_PI);
             } else {
                 emit systemErrorTriggered("Workspace Limit Reached!\nThe robot arm is fully extended. You cannot move outward. Jog Z- down to bend the elbow first.");
                 return;
@@ -288,7 +296,13 @@ void ClientBackend::executeStepJog()
     KDLJointCur(3) = m_j4 * (M_PI / 180.0);
     KDLJointCur(4) = m_j5 * (M_PI / 180.0);
     KDLJointCur(5) = m_j6 * (M_PI / 180.0);
-    m_kinematics.Fk();
+
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
+
     updateUIWithUserFrame();
 }
 
@@ -348,50 +362,66 @@ void ClientBackend::jogTick()
             KDL::Rotation R_ur = target_flange_base.M * R_home;
 
             double T[16];
-            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2); T[3] = target_flange_base.p.x() / 1000.0;
-            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2); T[7] = target_flange_base.p.y() / 1000.0;
-            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10] = R_ur(2,2); T[11] = target_flange_base.p.z() / 1000.0;
+            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2);
+            T[3] = target_flange_base.p.x() / 1000.0;
+            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2);
+            T[7] = target_flange_base.p.y() / 1000.0;
+            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10]= R_ur(2,2);
+            T[11]= target_flange_base.p.z() / 1000.0;
             T[12] = 0; T[13] = 0; T[14] = 0; T[15] = 1;
 
             double q_sols[48];
-            int n_sols = ur::inverse(T, q_sols);
+            int n_sols = ur::inverse(T, q_sols, KDLJointCur(5));
 
             if (n_sols > 0) {
                 double min_diff = 1e9;
-                int best_sol = 0;
+                int best_sol = -1;
 
-                double cur_ur[6] = {
-                    KDLJointCur(0),
-                    KDLJointCur(1) - M_PI_2,
-                    KDLJointCur(2),
-                    KDLJointCur(3) - M_PI_2,
-                    KDLJointCur(4),
-                    KDLJointCur(5)
+                auto normalize = [](double angle) {
+                    while(angle > M_PI) angle -= 2.0*M_PI;
+                    while(angle < -M_PI) angle += 2.0*M_PI;
+                    return angle;
                 };
 
                 for (int s=0; s<n_sols; s++) {
+                    double sol[6];
+                    sol[0] = normalize(q_sols[s*6 + 0]);
+                    sol[1] = normalize(q_sols[s*6 + 1] + M_PI_2);
+                    sol[2] = normalize(q_sols[s*6 + 2]);
+                    sol[3] = normalize(q_sols[s*6 + 3] + M_PI_2);
+                    sol[4] = normalize(q_sols[s*6 + 4]);
+                    sol[5] = normalize(q_sols[s*6 + 5]);
+
+                    // 1. LIMIT SHIELD
+                    bool limits_ok = true;
+                    for (int j=0; j<6; j++) {
+                        if (sol[j] < KDLJointMin(j) || sol[j] > KDLJointMax(j)) { limits_ok = false; break; }
+                    }
+                    if (!limits_ok) continue;
+
+                    // 2. SMOOTHNESS
                     double diff = 0;
                     for (int j=0; j<6; j++) {
-                        double j_diff = q_sols[s*6 + j] - cur_ur[j];
-                        while(j_diff > M_PI) j_diff -= 2.0*M_PI;
-                        while(j_diff < -M_PI) j_diff += 2.0*M_PI;
-                        diff += std::abs(j_diff);
+                        diff += std::abs(normalize(sol[j] - KDLJointCur(j)));
                     }
+
+                    // 3. ELBOW-UP PENALTY
+                    if (sol[2] < 0.0) diff += 1000.0;
+
                     if (diff < min_diff) { min_diff = diff; best_sol = s; }
                 }
 
-                for (int j=0; j<6; j++) {
-                    double j_diff = q_sols[best_sol*6 + j] - cur_ur[j];
-                    while(j_diff > M_PI) { q_sols[best_sol*6 + j] -= 2.0*M_PI; j_diff -= 2.0*M_PI; }
-                    while(j_diff < -M_PI) { q_sols[best_sol*6 + j] += 2.0*M_PI; j_diff += 2.0*M_PI; }
+                if (best_sol != -1) {
+                    m_j1 = normalize(q_sols[best_sol*6 + 0]) * (180.0 / M_PI);
+                    m_j2 = normalize(q_sols[best_sol*6 + 1] + M_PI_2) * (180.0 / M_PI);
+                    m_j3 = normalize(q_sols[best_sol*6 + 2]) * (180.0 / M_PI);
+                    m_j4 = normalize(q_sols[best_sol*6 + 3] + M_PI_2) * (180.0 / M_PI);
+                    m_j5 = normalize(q_sols[best_sol*6 + 4]) * (180.0 / M_PI);
+                    m_j6 = normalize(q_sols[best_sol*6 + 5]) * (180.0 / M_PI);
+                } else {
+                    emit systemErrorTriggered("Workspace Limit Reached!\nSafe IK Solution not found. Physical limit or elbow floor collision prevented.");
+                    return;
                 }
-
-                m_j1 = q_sols[best_sol*6 + 0] * (180.0 / M_PI);
-                m_j2 = (q_sols[best_sol*6 + 1] + M_PI_2) * (180.0 / M_PI);
-                m_j3 = q_sols[best_sol*6 + 2] * (180.0 / M_PI);
-                m_j4 = (q_sols[best_sol*6 + 3] + M_PI_2) * (180.0 / M_PI);
-                m_j5 = q_sols[best_sol*6 + 4] * (180.0 / M_PI);
-                m_j6 = q_sols[best_sol*6 + 5] * (180.0 / M_PI);
             } else {
                 emit systemErrorTriggered("Workspace Limit Reached!\nThe robot arm is fully extended. You cannot move outward. Jog Z- down to bend the elbow first.");
                 return;
@@ -422,7 +452,13 @@ void ClientBackend::jogTick()
     KDLJointCur(3) = m_j4 * (M_PI / 180.0);
     KDLJointCur(4) = m_j5 * (M_PI / 180.0);
     KDLJointCur(5) = m_j6 * (M_PI / 180.0);
-    m_kinematics.Fk();
+
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
+
     updateUIWithUserFrame();
 }
 
@@ -464,14 +500,22 @@ void ClientBackend::stopDxfProgram()
 void ClientBackend::setUserFrame(double x, double y, double z)
 {
     m_userFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
-    m_kinematics.Fk();
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
     updateUIWithUserFrame();
 }
 
 void ClientBackend::setToolFrame(double x, double y, double z)
 {
     m_toolFrame = KDL::Frame(KDL::Rotation::Identity(), KDL::Vector(x, y, z));
-    m_kinematics.Fk();
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
     updateUIWithUserFrame();
 }
 
@@ -576,50 +620,92 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
         KDL::Rotation R_ur = start_flange.M * R_home;
 
         double T[16];
-        T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2); T[3] = start_flange.p.x() / 1000.0;
-        T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2); T[7] = start_flange.p.y() / 1000.0;
-        T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10] = R_ur(2,2); T[11] = start_flange.p.z() / 1000.0;
+        T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2);
+        T[3] = start_flange.p.x() / 1000.0;
+        T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2);
+        T[7] = start_flange.p.y() / 1000.0;
+        T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10]= R_ur(2,2);
+        T[11]= start_flange.p.z() / 1000.0;
         T[12] = 0; T[13] = 0; T[14] = 0; T[15] = 1;
 
         double q_sols[48];
-        int n_sols = ur::inverse(T, q_sols);
+        int n_sols = ur::inverse(T, q_sols, KDLJointCur(5));
         if (n_sols > 0) {
             double min_diff = 1e9;
-            int best_sol = 0;
-            double cur_ur[6] = { KDLJointCur(0), KDLJointCur(1) - M_PI_2, KDLJointCur(2), KDLJointCur(3) - M_PI_2, KDLJointCur(4), KDLJointCur(5) };
+            int best_sol = -1;
+
+            auto normalize = [](double angle) {
+                while(angle > M_PI) angle -= 2.0*M_PI;
+                while(angle < -M_PI) angle += 2.0*M_PI;
+                return angle;
+            };
 
             for (int s=0; s<n_sols; s++) {
+                double sol[6];
+                sol[0] = normalize(q_sols[s*6 + 0]);
+                sol[1] = normalize(q_sols[s*6 + 1] + M_PI_2);
+                sol[2] = normalize(q_sols[s*6 + 2]);
+                sol[3] = normalize(q_sols[s*6 + 3] + M_PI_2);
+                sol[4] = normalize(q_sols[s*6 + 4]);
+                sol[5] = normalize(q_sols[s*6 + 5]);
+
+                // 1. LIMIT SHIELD
+                bool limits_ok = true;
+                for (int j=0; j<6; j++) {
+                    if (sol[j] < KDLJointMin(j) || sol[j] > KDLJointMax(j)) { limits_ok = false; break; }
+                }
+                if (!limits_ok) continue;
+
+                // 2. SMOOTHNESS (Compared to physical current joints)
                 double diff = 0;
                 for (int j=0; j<6; j++) {
-                    double j_diff = q_sols[s*6 + j] - cur_ur[j];
-                    while(j_diff > M_PI) j_diff -= 2.0*M_PI;
-                    while(j_diff < -M_PI) j_diff += 2.0*M_PI;
-                    diff += std::abs(j_diff);
+                    diff += std::abs(normalize(sol[j] - KDLJointCur(j)));
                 }
+
+                // 3. ELBOW-UP PENALTY
+                if (sol[2] < 0.0) diff += 1000.0;
+
                 if (diff < min_diff) { min_diff = diff; best_sol = s; }
             }
-            start_joints(0) = q_sols[best_sol*6 + 0];
-            start_joints(1) = q_sols[best_sol*6 + 1] + M_PI_2;
-            start_joints(2) = q_sols[best_sol*6 + 2];
-            start_joints(3) = q_sols[best_sol*6 + 3] + M_PI_2;
-            start_joints(4) = q_sols[best_sol*6 + 4];
-            start_joints(5) = q_sols[best_sol*6 + 5];
-            start_reachable = true;
+
+            if (best_sol != -1) {
+                start_joints(0) = normalize(q_sols[best_sol*6 + 0]);
+                start_joints(1) = normalize(q_sols[best_sol*6 + 1] + M_PI_2);
+                start_joints(2) = normalize(q_sols[best_sol*6 + 2]);
+                start_joints(3) = normalize(q_sols[best_sol*6 + 3] + M_PI_2);
+                start_joints(4) = normalize(q_sols[best_sol*6 + 4]);
+                start_joints(5) = normalize(q_sols[best_sol*6 + 5]);
+                start_reachable = true;
+            }
         }
     } else {
         KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
         KDL::ChainIkSolverVel_pinv iksolverv(KDLChain);
         KDL::ChainIkSolverPos_NR_JL iksolver_nr(KDLChain, KDLJointMin, KDLJointMax, fksolver, iksolverv, 100, 1e-4);
 
-        std::vector<KDL::JntArray> seeds = {KDLJointCur};
-        double j0_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
-        for(double j0 : j0_opts) {
-            KDL::JntArray s(6); s(0)=j0; s(1)=-M_PI/4; s(2)=M_PI/2; s(3)=-M_PI/4; s(4)=M_PI/2; s(5)=0.0;
-            seeds.push_back(s);
+        // 🚀 THE FIX: Apply the same 32 Smart Seeds here!
+        std::vector<KDL::JntArray> seeds;
+        seeds.push_back(KDLJointCur);
+
+        double j1_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
+        double j4_opts[] = {0.0, M_PI/2, -M_PI/2, M_PI};
+        double j5_opts[] = {M_PI/2, -M_PI/2};
+
+        for(double j1 : j1_opts) {
+            for(double j4 : j4_opts) {
+                for(double j5 : j5_opts) {
+                    KDL::JntArray s(6);
+                    s(0)=j1; s(1)=M_PI/6; s(2)=M_PI/3;
+                    s(3)=j4; s(4)=j5; s(5)=0.0;
+                    seeds.push_back(s);
+                }
+            }
         }
+
         for (const auto& seed : seeds) {
             if (iksolver_nr.CartToJnt(seed, start_flange, start_joints) >= 0) {
-                start_reachable = true; break;
+                start_reachable = true;
+                break;
             }
         }
     }
@@ -676,35 +762,63 @@ void ClientBackend::runDxfProgram(const QString &csvData, const QString &mode)
             KDL::Rotation R_ur = target_fl.M * R_home;
 
             double T[16];
-            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2); T[3] = target_fl.p.x() / 1000.0;
-            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2); T[7] = target_fl.p.y() / 1000.0;
-            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10] = R_ur(2,2); T[11] = target_fl.p.z() / 1000.0;
+            T[0] = R_ur(0,0); T[1] = R_ur(0,1); T[2] = R_ur(0,2);
+            T[3] = target_fl.p.x() / 1000.0;
+            T[4] = R_ur(1,0); T[5] = R_ur(1,1); T[6] = R_ur(1,2);
+            T[7] = target_fl.p.y() / 1000.0;
+            T[8] = R_ur(2,0); T[9] = R_ur(2,1); T[10]= R_ur(2,2);
+            T[11]= target_fl.p.z() / 1000.0;
             T[12] = 0; T[13] = 0; T[14] = 0; T[15] = 1;
 
             double q_sols[48];
-            int n_sols = ur::inverse(T, q_sols);
+            int n_sols = ur::inverse(T, q_sols, temp_joints(5));
             if (n_sols > 0) {
                 double min_diff = 1e9;
-                int best_sol = 0;
-                double cur_ur[6] = { temp_joints(0), temp_joints(1) - M_PI_2, temp_joints(2), temp_joints(3) - M_PI_2, temp_joints(4), temp_joints(5) };
+                int best_sol = -1;
+
+                auto normalize = [](double angle) {
+                    while(angle > M_PI) angle -= 2.0*M_PI;
+                    while(angle < -M_PI) angle += 2.0*M_PI;
+                    return angle;
+                };
 
                 for (int s=0; s<n_sols; s++) {
+                    double sol[6];
+                    sol[0] = normalize(q_sols[s*6 + 0]);
+                    sol[1] = normalize(q_sols[s*6 + 1] + M_PI_2);
+                    sol[2] = normalize(q_sols[s*6 + 2]);
+                    sol[3] = normalize(q_sols[s*6 + 3] + M_PI_2);
+                    sol[4] = normalize(q_sols[s*6 + 4]);
+                    sol[5] = normalize(q_sols[s*6 + 5]);
+
+                    // 1. LIMIT SHIELD
+                    bool limits_ok = true;
+                    for (int j=0; j<6; j++) {
+                        if (sol[j] < KDLJointMin(j) || sol[j] > KDLJointMax(j)) { limits_ok = false; break; }
+                    }
+                    if (!limits_ok) continue;
+
+                    // 2. SMOOTHNESS (Compared to the PREVIOUS point in the loop)
                     double diff = 0;
                     for (int j=0; j<6; j++) {
-                        double j_diff = q_sols[s*6 + j] - cur_ur[j];
-                        while(j_diff > M_PI) j_diff -= 2.0*M_PI;
-                        while(j_diff < -M_PI) j_diff += 2.0*M_PI;
-                        diff += std::abs(j_diff);
+                        diff += std::abs(normalize(sol[j] - temp_joints(j)));
                     }
+
+                    // 3. ELBOW-UP PENALTY
+                    if (sol[2] < 0.0) diff += 1000.0;
+
                     if (diff < min_diff) { min_diff = diff; best_sol = s; }
                 }
-                out_joints(0) = q_sols[best_sol*6 + 0];
-                out_joints(1) = q_sols[best_sol*6 + 1] + M_PI_2;
-                out_joints(2) = q_sols[best_sol*6 + 2];
-                out_joints(3) = q_sols[best_sol*6 + 3] + M_PI_2;
-                out_joints(4) = q_sols[best_sol*6 + 4];
-                out_joints(5) = q_sols[best_sol*6 + 5];
-                point_reachable = true;
+
+                if (best_sol != -1) {
+                    out_joints(0) = normalize(q_sols[best_sol*6 + 0]);
+                    out_joints(1) = normalize(q_sols[best_sol*6 + 1] + M_PI_2);
+                    out_joints(2) = normalize(q_sols[best_sol*6 + 2]);
+                    out_joints(3) = normalize(q_sols[best_sol*6 + 3] + M_PI_2);
+                    out_joints(4) = normalize(q_sols[best_sol*6 + 4]);
+                    out_joints(5) = normalize(q_sols[best_sol*6 + 5]);
+                    point_reachable = true;
+                }
             }
         } else {
             KDL::ChainFkSolverPos_recursive fksolver(KDLChain);
@@ -766,7 +880,11 @@ void ClientBackend::playbackTick()
 
     if (isFinished) {
         m_playbackTimer->stop();
-        m_kinematics.Fk();
+        if (m_isCobot) {
+            m_cobot_kinematics.Fk();
+        } else {
+            m_kinematics.Fk();
+        }
         updateUIWithUserFrame();
         QTimer::singleShot(50, this, &ClientBackend::updateUIWithUserFrame);
         emit programFinished();
@@ -774,7 +892,13 @@ void ClientBackend::playbackTick()
     }
 
     m_playbackIndex += 16;
-    m_kinematics.Fk();
+
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
+
     updateUIWithUserFrame();
 }
 
@@ -783,7 +907,7 @@ void ClientBackend::updateRobotKinematics(double bx, double bz, double az, doubl
     m_isCobot = isCobot;
 
     if (isCobot) {
-        m_kinematics.RebuildCobotChain(bx, bz, az, ez, fx, wx, fy);
+        m_cobot_kinematics.RebuildChain(bx, bz, az, ez, fx, wx, fy);
     } else {
         m_kinematics.RebuildChain(bx, bz, az, ez, fx, wx);
         m_kinematics.UpdateLimits(-170, 170, -110, 120, -108, 148, -200, 200, -120, 120, -350, 350);
@@ -796,6 +920,11 @@ void ClientBackend::updateRobotKinematics(double bx, double bz, double az, doubl
     KDLJointCur(4) = m_j5 * (M_PI / 180.0);
     KDLJointCur(5) = m_j6 * (M_PI / 180.0);
 
-    m_kinematics.Fk();
+    if (m_isCobot) {
+        m_cobot_kinematics.Fk();
+    } else {
+        m_kinematics.Fk();
+    }
+
     updateUIWithUserFrame();
 }

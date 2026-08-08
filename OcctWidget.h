@@ -41,6 +41,7 @@ struct PathData {
     Handle(AIS_Shape) visualRedPath;
     double resolution;
     gp_Pnt activeOrigin;
+    QString approach; // 🚀 ADDED: Remembers the approach angle!
 };
 
 class OcctWidget : public QWidget
@@ -58,14 +59,13 @@ public:
     void transformLoadedPart(int ufIndex, double dx, double dy, double dz, double rx, double ry, double rz);
     void clearLoadedPart(int ufIndex);
     bool hasLoadedPart() const { return !myLoadedParts.empty(); }
-    void processAllEdges(double resolution, int ufIndex = -1);
+
     QString getOriginText(int ufIndex) const;
 
     void reloadRobot(const QString& folderPath, const QString& linkPrefix, double bx, double bz, double az, double ez, double fx, double wx, double fy, bool isCobot = false);
     double m_rob_fy = 109.0; // 🚀 ADD THIS TO PRIVATE VARS
     void reloadRobot(const QString& folderPath);
 
-    void processCurrentSelection(double resolution);
     void clearMarks();
 
     // Defines whether this widget acts as the Main Left screen or the Isolated Right screen
@@ -96,6 +96,12 @@ public:
     void calculateCustomStartPoint(double percentage);
     void calculateCustomEndPoint(double percentage);
 
+    // =========================================================
+    // 🚀 DYNAMIC EXTRACTION METHODS (MOVED TO PUBLIC)
+    // =========================================================
+    void processCurrentSelection(double resolution, const QString& approach = "Top");
+    void processAllEdges(double resolution, int ufIndex = -1, const QString& approach = "Top");
+
 signals:
     void statusUpdate(const QString& msg);
     void partSelectedForIsolation(const TopoDS_Shape& shape);
@@ -116,8 +122,9 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
 private:
-    int m_loadSessionId = 0; // 🚀 ADD THIS
-    int m_activeSession = 0; // 🚀 ADD THIS
+    Handle(AIS_ColoredShape) myOrientationMarker;
+    int m_loadSessionId = 0;
+    int m_activeSession = 0;
     bool m_isCobot = false;
     // =========================================================
     // 🚀 MULTI-TASK MAPS (Replaces single instances)
@@ -178,7 +185,7 @@ private:
 
     bool myIsSettingOriginMode = false;
     gp_Pnt myDefaultOrigin{0.0, 0.0, 0.0};
-    gp_Pnt myCustomOrigin{0.0, 0.0, 0.0}; // <-- Add this line back!
+    gp_Pnt myCustomOrigin{0.0, 0.0, 0.0};
     Handle(AIS_Trihedron) myOriginMarker;
 
     // Variables to manage History and the CSV
@@ -193,11 +200,12 @@ private:
     void regenerateCSV();
 
     // =========================================================
-    // 🚀 DYNAMIC EXTRACTION METHODS (Uses Active Origin)
+    // 🚀 INTERNAL MATH HELPERS (Keep these Private)
     // =========================================================
-    void processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
-    void processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
-    void processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin);
+    void processFace(const TopoDS_Face& face, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach);
+    void processWire(const TopoDS_Wire& wire, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach);
+    void processEdge(const TopoDS_Edge& edge, QTextStream& out, double resolution, const gp_Pnt& activeOrigin, const QString& approach);
+    void drawOrientationMarker(const gp_Ax3& pos);
 };
 
 #endif // OCCTWIDGET_H

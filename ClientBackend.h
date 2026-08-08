@@ -6,6 +6,7 @@
 #include <QList>
 #include "scurve.h"
 #include "kinematic.h" // <--- 1. Ensure this is included
+#include "cobotkinematics.h"
 
 struct JointPoint {
     double time, j1, j2, j3, j4, j5, j6;
@@ -76,6 +77,7 @@ private:
     double m_liveOffsetZ = 0.0;
 
     kinematic m_kinematics;
+    CobotKinematic m_cobot_kinematics;
 };
 
 #endif

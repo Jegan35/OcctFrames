@@ -31,6 +31,8 @@ qt_add_executable(appOCCT
     kinematic.h kinematic.cpp
     ClientBackend.h ClientBackend.cpp
     ur_kinematics.h
+    cobotkinematics.h cobotkinematics.cpp
+
 
 
 
