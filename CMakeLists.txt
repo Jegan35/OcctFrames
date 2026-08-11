@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(OCCT_Industrial VERSION 0.1 LANGUAGES CXX)
 
-
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Enable Qt's automatic Meta-Object Compiler (MOC)
